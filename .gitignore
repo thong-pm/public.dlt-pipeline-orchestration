@@ -1,0 +1,15 @@
+# dlt secrets
+.dlt/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# dlt local state (if using local state instead of cloud/db)
+.dlt/*.sqlite
+.dlt/*.json
+
+# Ensure example files ARE tracked
+! .dlt/secrets.toml.example

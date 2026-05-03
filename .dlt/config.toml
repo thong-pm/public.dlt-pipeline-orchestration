@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MASTER PIPELINE CONFIGURATION
+# Edit this file to control how all pipelines run.
+# DO NOT put secrets/tokens here — those go in secrets.toml
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Set to false to skip running a specific pipeline
+[pipeline.active]
+hubspot = false
+procore = true
+shopify = true
+xero = true
+
+[sources.hubspot]
+resources = [
+    "contacts",
+    "companies",
+    "deals",
+    "tickets",
+    "products",
+    # "quotes",
+    "owners",
+    "pipelines_deals",
+    "pipelines_tickets",
+    # "stages_timing_deals",
+    # "stages_timing_tickets",
+    # "properties",
+]
+
+[sources.xero]
+tenant_ids = ["all"]
+resources = ["invoices", "contacts", "accounts"]
+
+[sources.shopify]
+# Multi-store: set to ["all"] or specific store keys like ["store1", "store2"]
+# Store entries go in secrets.toml under [sources.shopify.stores.<key>]
+# Single-store: leave stores unset or empty, use root access_token in secrets.toml
+stores = ["all"]
+# Available resources: products, orders, customers, inventory_items
+resources = [
+    "products",
+    "orders",
+    # "customers",
+    # "inventory_items",
+]
+
+[sources.procore]
+environment = "sandbox" # "sandbox" or "prod"
+company_ids = ["all"]
+resources = [
+    # Company-level
+    "companies",
+    "projects",
+    "users",
+    "vendors",
+    # "timesheets",
+    # Project-level (iterates over all projects in selected companies)
+    "budget_line_items",
+    "prime_contracts",
+    "change_orders",
+    "observations",
+    "rfis",
+    "submittals",
+    "punch_items",
+    # "manpower_logs",
+    # "drawings",
+    # "schedule_tasks",
+]
+
+[pipeline]
+full_refresh = true # Set to true to drop and reload all data on next run.
