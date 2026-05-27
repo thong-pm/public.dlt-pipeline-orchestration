@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: procore
+    description: "Raw Procore construction management data loaded by dlt."
+    schema: "{{ 'procore_raw' if target.name == 'prod' else 'procore_data' }}"
+    tables:
+      - name: projects
+        description: "Procore construction projects."
+      - name: companies
+        description: "Procore company/client list."
+      - name: users
+        description: "Procore user accounts."
+      - name: vendors
+        description: "Procore vendor list."

@@ -1,0 +1,22 @@
+dbt_transform:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: your_postgres_user
+      password: your_postgres_password
+      dbname: your_postgres_db
+      schema: public
+      threads: 4
+    prod:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID', 'your-gcp-project-id') }}"
+      dataset: dbt_prod
+      threads: 4
+      keyfile_json: "{{ env_var('GCP_SA_KEY_JSON', '{}') }}"
+      location: US
+      priority: interactive
+      retries: 1

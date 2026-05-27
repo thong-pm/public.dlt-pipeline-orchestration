@@ -1,3 +1,4 @@
+import os
 import dlt
 import tomlkit
 import threading
@@ -8,17 +9,18 @@ from sources.procore.source import get_procore_source
 from sources.shopify.source import get_shopify_source
 from utils.logging import print_load_summary
 from utils.preflight import run_preflight
+from utils.secret_manager import download_secrets, upload_secrets
 
 
-def run_hubspot(full_refresh: bool, results: dict):
+def run_hubspot(full_refresh: bool, destination: str, results: dict):
     try:
         with open('.dlt/config.toml', 'r') as f:
             config = tomlkit.load(f)
         resources = config['sources']['hubspot']['resources']
         pipeline = dlt.pipeline(
             pipeline_name="hubspot_pipeline",
-            destination="postgres",
-            dataset_name="hubspot_data"
+            destination=destination,
+            dataset_name="hubspot_raw" if destination == "bigquery" else "hubspot_data"
         )
         data = hubspot().with_resources(*resources)
         info = pipeline.run(data, refresh="drop_data" if full_refresh else None)
@@ -27,7 +29,7 @@ def run_hubspot(full_refresh: bool, results: dict):
         results['hubspot'] = ('failed', str(e))
 
 
-def run_xero(full_refresh: bool, results: dict):
+def run_xero(full_refresh: bool, destination: str, results: dict):
     try:
         with open('.dlt/config.toml', 'r') as f:
             config = tomlkit.load(f)
@@ -44,8 +46,8 @@ def run_xero(full_refresh: bool, results: dict):
 
         pipeline = dlt.pipeline(
             pipeline_name="xero_pipeline",
-            destination="postgres",
-            dataset_name="xero_data"
+            destination=destination,
+            dataset_name="xero_raw" if destination == "bigquery" else "xero_data"
         )
         data = get_xero_source(tenant_ids=tenant_ids)
         info = pipeline.run(data, refresh="drop_data" if full_refresh else None)
@@ -54,12 +56,12 @@ def run_xero(full_refresh: bool, results: dict):
         results['xero'] = ('failed', str(e))
 
 
-def run_procore(full_refresh: bool, results: dict):
+def run_procore(full_refresh: bool, destination: str, results: dict):
     try:
         pipeline = dlt.pipeline(
             pipeline_name="procore_pipeline",
-            destination="postgres",
-            dataset_name="procore_data"
+            destination=destination,
+            dataset_name="procore_raw" if destination == "bigquery" else "procore_data"
         )
         data = get_procore_source()
         info = pipeline.run(data, refresh="drop_data" if full_refresh else None)
@@ -68,12 +70,12 @@ def run_procore(full_refresh: bool, results: dict):
         results['procore'] = ('failed', str(e))
 
 
-def run_shopify(full_refresh: bool, results: dict):
+def run_shopify(full_refresh: bool, destination: str, results: dict):
     try:
         pipeline = dlt.pipeline(
             pipeline_name="shopify_pipeline",
-            destination="postgres",
-            dataset_name="shopify_data"
+            destination=destination,
+            dataset_name="shopify_raw" if destination == "bigquery" else "shopify_data"
         )
         data = get_shopify_source()
         info = pipeline.run(data, refresh="drop_data" if full_refresh else None)
@@ -91,9 +93,16 @@ RUNNERS = {
 
 
 if __name__ == "__main__":
+    download_secrets()
     with open('.dlt/config.toml', 'r') as f:
         config = tomlkit.load(f)
-    full_refresh = config['pipeline'].get('full_refresh', False)
+    
+    # Enable environment variables to override pipeline config
+    full_refresh_env = os.environ.get('PIPELINE__FULL_REFRESH')
+    if full_refresh_env is not None:
+        full_refresh = full_refresh_env.lower() in ('true', '1', 'yes')
+    else:
+        full_refresh = config['pipeline'].get('full_refresh', False)
 
     # Read active pipelines from boolean dictionary [pipeline.active]
     active_dict = config.get('pipeline', {}).get('active', {})
@@ -103,7 +112,7 @@ if __name__ == "__main__":
     else:
         active_pipelines = [k for k, v in active_dict.items() if v]
 
-    # ── Pre-flight auth check ─────────────────────────────────────────────
+    # Pre-flight auth check
     # Checks all sources, prompts to authorize if in interactive mode,
     # skips unauthorized ones if in non-interactive/scheduled mode.
     auth_status = run_preflight(sources=active_pipelines)
@@ -112,19 +121,21 @@ if __name__ == "__main__":
 
 
     if not ready:
-        print("❌ No sources are authorized. Nothing to run.")
+        print("No sources are authorized. Nothing to run.")
         exit(1)
 
     if skipped:
-        print(f"⏭  Skipping (not authorized): {', '.join(s.capitalize() for s in skipped)}")
+        print(f"Skipping (not authorized): {', '.join(s.capitalize() for s in skipped)}")
 
+    destination = os.environ.get('PIPELINE__DESTINATION') or config['pipeline'].get('destination', 'postgres')
     print(f"\nStarting pipelines in parallel: {', '.join(s.capitalize() for s in ready)}")
+    print(f"Destination: {destination}")
     print(f"Full Refresh: {full_refresh}")
     print("=" * 55)
 
     results = {}
     threads = [
-        threading.Thread(target=RUNNERS[source], args=(full_refresh, results), name=source)
+        threading.Thread(target=RUNNERS[source], args=(full_refresh, destination, results), name=source)
         for source in ready
     ]
 
@@ -133,7 +144,7 @@ if __name__ == "__main__":
     for t in threads:
         t.join()
 
-    # ── Summary ───────────────────────────────────────────────────────────
+    # Summary
     print("\n" + "=" * 55)
     print("PIPELINE RUN SUMMARY")
     print("=" * 55)
@@ -145,14 +156,15 @@ if __name__ == "__main__":
             print_load_summary(source.capitalize(), pipeline, info)
         else:
             _, error = result
-            print(f"\n❌ {source.upper()} FAILED: {error}")
+            print(f"\n{source.upper()} FAILED: {error}")
             failed.append(source)
 
     print("=" * 55)
+    upload_secrets()
     if skipped:
-        print(f"⏭  Skipped (no auth): {', '.join(s.capitalize() for s in skipped)}")
+        print(f"Skipped (no auth): {', '.join(s.capitalize() for s in skipped)}")
     if failed:
-        print(f"⚠️  {len(failed)} pipeline(s) failed: {', '.join(failed)}")
+        print(f"{len(failed)} pipeline(s) failed: {', '.join(failed)}")
         exit(1)
     else:
-        print(f"✅ All authorized pipelines completed successfully.")
+        print(f"All authorized pipelines completed successfully.")

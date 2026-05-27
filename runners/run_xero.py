@@ -64,13 +64,15 @@ if __name__ == "__main__":
         # Empty — fall back to interactive selection
         tenant_ids, display_name = select_tenants_interactive(token_mgr)
 
+    destination = config['pipeline'].get('destination', 'postgres')
     pipeline = dlt.pipeline(
         pipeline_name="xero_pipeline",
-        destination="postgres",
-        dataset_name="xero_data"
+        destination=destination,
+        dataset_name="xero_raw" if destination == "bigquery" else "xero_data"
     )
 
     print(f"\nLoading Xero data for: {display_name}")
+    print(f"Destination: {destination}")
     print(f"Full Refresh: {full_refresh}\n")
 
     try:

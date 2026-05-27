@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: shopify
+    description: "Raw Shopify e-commerce data loaded by dlt."
+    schema: "{{ 'shopify_raw' if target.name == 'prod' else 'shopify_data' }}"
+    tables:
+      - name: products
+        description: "Shopify product catalogue."
+      - name: products__variants
+        description: "Shopify product variant records (child table of products)."

@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: xero
+    description: "Raw Xero accounting data loaded by dlt."
+    schema: "{{ 'xero_raw' if target.name == 'prod' else 'xero_data' }}"
+    tables:
+      - name: invoices
+        description: "Xero invoice headers."
+      - name: invoices__line_items
+        description: "Xero invoice line items (child table of invoices, joined via _dlt_root_id)."
+      - name: contacts
+        description: "Xero billing contacts."
+      - name: tenants
+        description: "Xero authorised organisations (tenants)."

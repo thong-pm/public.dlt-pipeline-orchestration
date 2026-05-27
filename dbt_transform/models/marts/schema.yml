@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Golden records of customers consolidated from HubSpot CRM and Xero Billing systems."
+    columns:
+      - name: customer_key
+        description: "Primary surrogate key generated from the customer's email address."
+        tests:
+          - unique
+          - not_null
+      - name: email
+        description: "Lowercased, deduplicated email address."
+        tests:
+          - not_null
+
+  - name: fct_revenue
+    description: "Grain-level billing and CRM sales revenue transactions."
+    columns:
+      - name: revenue_key
+        description: "Primary surrogate key generated from the source system and transaction ID."
+        tests:
+          - unique
+          - not_null
+      - name: revenue_amount
+        description: "Total value of the transaction."
+        tests:
+          - not_null

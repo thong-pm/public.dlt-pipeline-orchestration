@@ -1,0 +1,21 @@
+{
+  "displayName": "DLT Pipeline Job Failure",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Job Failed Log Detected",
+      "conditionMatchedLog": {
+        "filter": "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"dlt-pipeline-job\" AND severity>=ERROR"
+      }
+    }
+  ],
+  "notificationChannels": [
+    "projects/gcp-etl-497002/notificationChannels/9497352822406433800"
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "300s"
+    }
+  },
+  "enabled": true
+}

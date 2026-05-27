@@ -1,15 +1,33 @@
-# dlt secrets
-.dlt/secrets.toml
-
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .venv/
 .env
+.env.*
 
-# dlt local state (if using local state instead of cloud/db)
+# dlt
+.dlt/secrets.toml
 .dlt/*.sqlite
 .dlt/*.json
+!.dlt/secrets.toml.example
 
-# Ensure example files ARE tracked
-! .dlt/secrets.toml.example
+# dbt
+dbt_transform/target/
+dbt_transform/dbt_packages/
+dbt_transform/logs/
+dbt_transform/.user.yml
+
+# GCP
+gcp-credentials.json
+*-sa-key.json
+
+# Logs & temp
+logs/
+*.log
+scratch/
+
+# Personal note
+docs/
+*note.txt

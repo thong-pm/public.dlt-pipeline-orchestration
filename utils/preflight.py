@@ -36,11 +36,11 @@ def _check_all() -> dict:
 
     results = {}
 
-    # ── HubSpot: static key, just check it's not a placeholder ───────────
+    # HubSpot: check if api_key is valid
     hs = secrets.get('sources', {}).get('hubspot', {})
     results['hubspot'] = _is_valid(hs.get('api_key'))
 
-    # ── Xero: attempt a live refresh to confirm refresh_token works ───────
+    # Xero: attempt a live refresh to confirm refresh_token works
     xero = secrets.get('sources', {}).get('xero', {})
     refresh_token = xero.get('refresh_token', '')
     if not _is_valid(refresh_token):
@@ -55,7 +55,6 @@ def _check_all() -> dict:
             )
             results['xero'] = r.status_code == 200
             if r.status_code == 200:
-                # Persist the new rotated tokens immediately
                 data = r.json()
                 with open('.dlt/secrets.toml', 'r') as f:
                     s = tomlkit.load(f)
@@ -63,10 +62,13 @@ def _check_all() -> dict:
                 s['sources']['xero']['refresh_token'] = data['refresh_token']
                 with open('.dlt/secrets.toml', 'w') as f:
                     tomlkit.dump(s, f)
-        except Exception:
+            else:
+                print(f"  [preflight] Xero token refresh failed: {r.status_code} - {r.text}")
+        except Exception as e:
+            print(f"  [preflight] Xero token refresh exception: {e}")
             results['xero'] = False
 
-    # ── Procore: attempt a live refresh to confirm refresh_token works ────
+    # Procore: attempt a live refresh to confirm refresh_token works
     env = config.get('sources', {}).get('procore', {}).get('environment', 'sandbox')
     procore_env = secrets.get('sources', {}).get('procore', {}).get(env, {})
     p_refresh = procore_env.get('refresh_token', '')
@@ -97,10 +99,13 @@ def _check_all() -> dict:
                 s['sources']['procore'][env]['refresh_token'] = data['refresh_token']
                 with open('.dlt/secrets.toml', 'w') as f:
                     tomlkit.dump(s, f)
-        except Exception:
+            else:
+                print(f"  [preflight] Procore token refresh failed: {r.status_code} - {r.text}")
+        except Exception as e:
+            print(f"  [preflight] Procore token refresh exception: {e}")
             results['procore'] = False
 
-    # ── Shopify: check at least one store has a valid token ──────────────
+    # Shopify: check at least one store has a valid token
     shopify = secrets.get('sources', {}).get('shopify', {})
     stores = shopify.get('stores', {})
 
@@ -191,33 +196,81 @@ def run_preflight(sources: list = None) -> dict:
     if not unauthorized:
         return status  # All good, nothing to do
 
-    # ── Log unauthorized sources ──────────────────────────────────────────
+    # Log unauthorized sources
     print("\n" + "=" * 55)
-    print("⚠️  PRE-FLIGHT: Missing authorization detected")
+    print("PRE-FLIGHT: Missing authorization detected")
     print("=" * 55)
     for source in unauthorized:
-        print(f"  ❌ {source.upper():10s} — {_HELP[source]}")
+        print(f"  [FAILED] {source.upper():10s} - {_HELP[source]}")
     print("=" * 55)
 
     for source in unauthorized:
         script = _AUTH_SCRIPTS.get(source)
         if not script:
-            print(f"\n  → {source.capitalize()} requires manual setup (see above).")
+            print(f"\n  - {source.capitalize()} requires manual setup (see above).")
             continue
 
-        try:
-            # Always try to prompt — falls back to skip in non-interactive mode
-            answer = input(f"\n  → Authorize {source.capitalize()} now? [y/N]: ").strip().lower()
-        except (EOFError, OSError):
-            # stdin not available (cron/CI) — skip this source
-            print(f"  ℹ️  Non-interactive mode — skipping {source.capitalize()}.")
-            continue
+        if source == 'shopify':
+            try:
+                secrets = _load_secrets()
+                shopify_cfg = secrets.get('sources', {}).get('shopify', {})
+                stores = shopify_cfg.get('stores', {})
+            except Exception:
+                stores = {}
 
-        if answer == 'y':
-            print(f"  Starting {source.capitalize()} auth...")
-            subprocess.run([sys.executable, script])
+            if stores:
+                import requests
+                for store_key, store_cfg in stores.items():
+                    access_token = store_cfg.get('access_token', '')
+                    shop_url = store_cfg.get('shop_url', '').rstrip('/')
+                    is_store_valid = False
+                    if _is_valid(access_token) and _is_valid(shop_url):
+                        try:
+                            r = requests.get(
+                                f"{shop_url}/admin/api/2024-01/shop.json",
+                                headers={"X-Shopify-Access-Token": access_token},
+                                timeout=10
+                            )
+                            is_store_valid = (r.status_code == 200)
+                        except Exception:
+                            pass
+                    
+                    if not is_store_valid:
+                        try:
+                            answer = input(f"\n  - Authorize Shopify store '{store_key}' now? [y/N]: ").strip().lower()
+                        except (EOFError, OSError):
+                            print(f"  Non-interactive mode - skipping Shopify store '{store_key}'.")
+                            continue
+                        if answer == 'y':
+                            print(f"  Starting Shopify auth for '{store_key}'...")
+                            subprocess.run([sys.executable, script, "--store", store_key])
+                        else:
+                            print(f"  Skipping Shopify store '{store_key}'.")
+            else:
+                try:
+                    answer = input(f"\n  - Authorize Shopify now? [y/N]: ").strip().lower()
+                except (EOFError, OSError):
+                    print(f"  Non-interactive mode - skipping Shopify.")
+                    continue
+                if answer == 'y':
+                    print("  Starting Shopify auth...")
+                    subprocess.run([sys.executable, script])
+                else:
+                    print("  Skipping Shopify.")
         else:
-            print(f"  ⏭  Skipping {source.capitalize()} — it will be excluded from this run.")
+            try:
+                # Always try to prompt — falls back to skip in non-interactive mode
+                answer = input(f"\n  - Authorize {source.capitalize()} now? [y/N]: ").strip().lower()
+            except (EOFError, OSError):
+                # stdin not available (cron/CI) — skip this source
+                print(f"  Non-interactive mode - skipping {source.capitalize()}.")
+                continue
+
+            if answer == 'y':
+                print(f"  Starting {source.capitalize()} auth...")
+                subprocess.run([sys.executable, script])
+            else:
+                print(f"  Skipping {source.capitalize()} - it will be excluded from this run.")
 
     # Re-check after any auth attempts
     status = {k: v for k, v in _check_all().items() if k in status}

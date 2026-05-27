@@ -17,14 +17,16 @@ if __name__ == "__main__":
     full_refresh = config['pipeline'].get('full_refresh', False)
     resources = config['sources']['hubspot']['resources']
 
+    destination = config['pipeline'].get('destination', 'postgres')
     print(f"Loading HubSpot data...")
+    print(f"Destination: {destination}")
     print(f"Resources: {resources}")
     print(f"Full Refresh: {full_refresh}\n")
 
     pipeline = dlt.pipeline(
         pipeline_name="hubspot_pipeline",
-        destination="postgres",
-        dataset_name="hubspot_data"
+        destination=destination,
+        dataset_name="hubspot_raw" if destination == "bigquery" else "hubspot_data"
     )
 
     try:

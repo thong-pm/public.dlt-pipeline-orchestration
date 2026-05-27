@@ -14,15 +14,16 @@ if __name__ == "__main__":
     with open('.dlt/config.toml', 'r') as f:
         config = tomlkit.load(f)
     
+    destination = config['pipeline'].get('destination', 'postgres')
     full_refresh = config['pipeline'].get('full_refresh', False)
     
     pipeline = dlt.pipeline(
         pipeline_name="shopify_pipeline",
-        destination="postgres",
-        dataset_name="shopify_data"
+        destination=destination,
+        dataset_name="shopify_raw" if destination == "bigquery" else "shopify_data"
     )
     
-    print(f"Loading Shopify data... Full Refresh: {full_refresh}")
+    print(f"Loading Shopify data... Destination: {destination}, Full Refresh: {full_refresh}")
     try:
         data = get_shopify_source()
         load_info = pipeline.run(data, refresh="drop_data" if full_refresh else None)

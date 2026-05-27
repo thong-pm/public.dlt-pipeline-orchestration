@@ -14,16 +14,17 @@ if __name__ == "__main__":
     with open('.dlt/config.toml', 'r') as f:
         config = tomlkit.load(f)
 
+    destination = config['pipeline'].get('destination', 'postgres')
     full_refresh = config['pipeline'].get('full_refresh', False)
     env = config['sources']['procore']['environment']
 
     pipeline = dlt.pipeline(
         pipeline_name="procore_pipeline",
-        destination="postgres",
-        dataset_name="procore_data"
+        destination=destination,
+        dataset_name="procore_raw" if destination == "bigquery" else "procore_data"
     )
 
-    print(f"Loading Procore ({env})... Full Refresh: {full_refresh}")
+    print(f"Loading Procore ({env})... Destination: {destination}, Full Refresh: {full_refresh}")
 
     try:
         data = get_procore_source()

@@ -1,0 +1,17 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.dlt/secrets.toml
+.dlt/config.toml.local
+gcp-credentials.json
+dbt_transform/target/
+dbt_transform/logs/
+dbt_transform/dbt_packages/
+.env
+.env.*
+*.log
+.pytest_cache/
+.ipynb_checkpoints/

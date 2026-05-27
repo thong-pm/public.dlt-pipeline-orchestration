@@ -23,28 +23,51 @@ def print_load_summary(source_name: str, pipeline: Pipeline, load_info) -> None:
             if rows:
                 has_metrics = True
                 for t, count in rows.items():
-                    print(f"  ✓ {t:<35} {count:>6} rows")
+                    print(f"  * {t:<35} {count:>6} rows")
                     total_rows += count
 
     if not has_metrics:
-        # Fallback: query postgres directly for row counts
+        # Fallback: query database directly for row counts
         try:
             with pipeline.sql_client() as client:
-                tables = [
-                    row[0]
-                    for row in client.execute_sql(
-                        "SELECT table_name FROM information_schema.tables "
-                        f"WHERE table_schema = '{pipeline.dataset_name}' "
-                        "AND table_name NOT LIKE '\\_dlt%' "
-                        "ORDER BY table_name"
-                    )
-                ]
-                for table in tables:
-                    count = client.execute_sql(
-                        f'SELECT COUNT(*) FROM "{pipeline.dataset_name}"."{table}"'
-                    )[0][0]
-                    print(f"  ✓ {table:<35} {count:>6} rows (total in DB)")
-                    total_rows += count
+                dest_name = (
+                    pipeline.destination.destination_name
+                    if hasattr(pipeline.destination, "destination_name")
+                    else str(pipeline.destination)
+                )
+                if "bigquery" in dest_name.lower():
+                    # BigQuery syntax
+                    tables = [
+                        row[0]
+                        for row in client.execute_sql(
+                            f"SELECT table_name FROM {pipeline.dataset_name}.INFORMATION_SCHEMA.TABLES "
+                            "WHERE table_name NOT LIKE '_dlt%' "
+                            "ORDER BY table_name"
+                        )
+                    ]
+                    for table in tables:
+                        count = client.execute_sql(
+                            f"SELECT COUNT(*) FROM {pipeline.dataset_name}.{table}"
+                        )[0][0]
+                        print(f"  * {table:<35} {count:>6} rows (total in DB)")
+                        total_rows += count
+                else:
+                    # Postgres syntax
+                    tables = [
+                        row[0]
+                        for row in client.execute_sql(
+                            "SELECT table_name FROM information_schema.tables "
+                            f"WHERE table_schema = '{pipeline.dataset_name}' "
+                            "AND table_name NOT LIKE '\\_dlt%' "
+                            "ORDER BY table_name"
+                        )
+                    ]
+                    for table in tables:
+                        count = client.execute_sql(
+                            f'SELECT COUNT(*) FROM "{pipeline.dataset_name}"."{table}"'
+                        )[0][0]
+                        print(f"  * {table:<35} {count:>6} rows (total in DB)")
+                        total_rows += count
         except Exception as e:
             print(f"  (Could not retrieve row counts: {e})")
 
