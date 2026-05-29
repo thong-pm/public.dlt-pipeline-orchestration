@@ -59,6 +59,8 @@ if __name__ == "__main__":
         print("Fetching all authorized organizations from Xero...")
         tenants = token_mgr.list_tenants()
         tenant_ids = [t['tenantId'] for t in tenants]
+        if not tenant_ids:
+            raise ValueError("No active Xero tenant connections found.")
         display_name = f"All Organizations ({len(tenant_ids)} tenants)"
     else:
         # Empty — fall back to interactive selection

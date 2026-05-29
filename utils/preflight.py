@@ -40,7 +40,7 @@ def _check_all() -> dict:
     hs = secrets.get('sources', {}).get('hubspot', {})
     results['hubspot'] = _is_valid(hs.get('api_key'))
 
-    # Xero: attempt a live refresh to confirm refresh_token works
+    # Xero: attempt a live refresh to confirm refresh_token works and check active connections
     xero = secrets.get('sources', {}).get('xero', {})
     refresh_token = xero.get('refresh_token', '')
     if not _is_valid(refresh_token):
@@ -53,7 +53,6 @@ def _check_all() -> dict:
                 data={"grant_type": "refresh_token", "refresh_token": refresh_token},
                 timeout=10
             )
-            results['xero'] = r.status_code == 200
             if r.status_code == 200:
                 data = r.json()
                 with open('.dlt/secrets.toml', 'r') as f:
@@ -62,8 +61,29 @@ def _check_all() -> dict:
                 s['sources']['xero']['refresh_token'] = data['refresh_token']
                 with open('.dlt/secrets.toml', 'w') as f:
                     tomlkit.dump(s, f)
+
+                # Verify that there is at least one active connection (tenant)
+                conn_res = requests.get(
+                    "https://api.xero.com/connections",
+                    headers={
+                        "Authorization": f"Bearer {data['access_token']}",
+                        "Accept": "application/json"
+                    },
+                    timeout=10
+                )
+                if conn_res.status_code == 200:
+                    tenants = conn_res.json()
+                    if tenants:
+                        results['xero'] = True
+                    else:
+                        print("  [preflight] Xero refresh token is valid, but found 0 active tenant connections.")
+                        results['xero'] = False
+                else:
+                    print(f"  [preflight] Xero connections check failed: {conn_res.status_code} - {conn_res.text}")
+                    results['xero'] = False
             else:
                 print(f"  [preflight] Xero token refresh failed: {r.status_code} - {r.text}")
+                results['xero'] = False
         except Exception as e:
             print(f"  [preflight] Xero token refresh exception: {e}")
             results['xero'] = False

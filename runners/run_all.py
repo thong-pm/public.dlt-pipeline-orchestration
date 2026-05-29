@@ -44,6 +44,9 @@ def run_xero(full_refresh: bool, destination: str, results: dict):
         else:
             raise ValueError("tenant_ids must be set in config.toml. Use [\"all\"] or specific IDs.")
 
+        if not tenant_ids:
+            raise ValueError("No active Xero tenant connections found.")
+
         pipeline = dlt.pipeline(
             pipeline_name="xero_pipeline",
             destination=destination,

@@ -89,26 +89,32 @@ def _create_multi_tenant_resource(token_mgr: XeroTokenManager, name: str, path: 
     @dlt.resource(name=name, write_disposition="merge", primary_key=primary_key)
     def _resource():
         for tenant_id in tenant_ids:
-            if paginated:
-                page = 1
-                while True:
-                    response = retrying_get(f"{BASE_URL}/{path}", headers=_headers(tenant_id), params={"page": page})
+            try:
+                if paginated:
+                    page = 1
+                    while True:
+                        response = retrying_get(f"{BASE_URL}/{path}", headers=_headers(tenant_id), params={"page": page})
+                        response.raise_for_status()
+                        records = response.json().get(response_key, [])
+                        print(f"[Xero] {name} ({tenant_id[:8]}...) page {page}: {len(records)} records")
+                        for r in records:
+                            r["xero_tenant_id"] = tenant_id
+                            yield r
+                        if len(records) < 100: break
+                        page += 1
+                else:
+                    response = retrying_get(f"{BASE_URL}/{path}", headers=_headers(tenant_id))
                     response.raise_for_status()
                     records = response.json().get(response_key, [])
-                    print(f"[Xero] {name} ({tenant_id[:8]}...) page {page}: {len(records)} records")
+                    print(f"[Xero] {name} ({tenant_id[:8]}...): {len(records)} records")
                     for r in records:
                         r["xero_tenant_id"] = tenant_id
                         yield r
-                    if len(records) < 100: break
-                    page += 1
-            else:
-                response = retrying_get(f"{BASE_URL}/{path}", headers=_headers(tenant_id))
-                response.raise_for_status()
-                records = response.json().get(response_key, [])
-                print(f"[Xero] {name} ({tenant_id[:8]}...): {len(records)} records")
-                for r in records:
-                    r["xero_tenant_id"] = tenant_id
-                    yield r
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code in (401, 403):
+                    print(f"[Xero] WARNING: Tenant {tenant_id[:8]}... query failed with status {e.response.status_code} (Unauthorized/Forbidden) - skipping this tenant.")
+                else:
+                    raise
 
     return _resource
 
@@ -125,7 +131,7 @@ def get_xero_source(tenant_ids=None):
     if isinstance(tenant_ids, str):
         tenant_ids = [tenant_ids]
 
-    if not tenant_ids:
+    if tenant_ids is None:
         config_ids = config['sources']['xero'].get('tenant_ids', [])
         if config_ids:
             tenant_ids = list(config_ids)
@@ -133,6 +139,9 @@ def get_xero_source(tenant_ids=None):
             t_id = dlt.secrets.get("sources.xero.tenant_id")
             if t_id: tenant_ids = [t_id]
             else: raise ValueError("No Xero Tenant IDs provided.")
+
+    if not tenant_ids or tenant_ids == ["all"]:
+        raise ValueError("No active Xero tenant connections found. Please check Xero authorization or config.toml.")
 
     token_mgr = XeroTokenManager()
 
