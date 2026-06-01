@@ -2,6 +2,16 @@
 
 A production-ready, parallel orchestration system for HubSpot, Xero, Shopify, and Procore data pipelines using dlt and dbt Core.
 
+![DLT Pipeline Architecture](dtl-pipeline-multi-saas.png)
+
+### Core Capabilities
+* **Parallel ELT Ingestion**: Concurrently loads data from HubSpot, Xero, Shopify, and Procore via `dlt` with schema evolution support.
+* **OAuth Token Self-Rotation**: Automatically refreshes and persists Xero and Procore OAuth tokens to local secrets or GCP Secret Manager.
+* **Preflight Connection Resilience**: Validates credentials before running, gracefully skipping failing sources to keep other ingestions online.
+* **In-Database SQL Transformations**: Orchestrates post-load `dbt Core` builds to clean raw data and populate downstream reporting marts.
+* **Slack & Email Observability**: Extracts ingestion metrics and dbt results to send Slack summaries and critical failure alerts.
+* **GCP Serverless Architecture**: Packaged as a Docker container executed on Cloud Run Jobs, triggered daily by Cloud Scheduler, and targeted to BigQuery.
+
 ## Project Structure
 
 ```text
