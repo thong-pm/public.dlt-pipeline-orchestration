@@ -1,10 +1,21 @@
-# DLT Pipeline: Multi-Tenant SaaS Orchestration
+# Multi-Source SaaS Serverless ELT Pipeline: BigQuery, dlt, & dbt Core
 
-A production-ready, parallel orchestration system for HubSpot, Xero, Shopify, and Procore data pipelines using dlt and dbt Core.
+A production-ready, parallel ingestion and transformation pipeline for HubSpot, Xero, Shopify, and Procore data using dlt and dbt Core.
 
 ![DLT Pipeline Architecture](dtl-pipeline-multi-saas.png)
 
+### Built for Agencies (BI Analytics, CRM or Marketing)
+
+A cost-effective serverless ELT/ETL solution using dlt and dbt Core to centralize data from HubSpot, Xero, Shopify, and Procore into Google BigQuery or PostgreSQL, eliminating expensive monthly third-party connector fees.
+
+*This system runs automated, low-maintenance pipelines with built-in Slack and Email alerting. Need this deployed, customized, or connected to other APIs? [Let's discuss your project on Upwork](https://www.upwork.com/freelancers/~01ff16ed25bc2d9375).*
+
+
+
 ### Core Capabilities
+* **Saves on Software Fees**: Uses the open-source `dlt` engine to ingest client data, eliminating expensive third-party connector subscriptions.
+* **Low-Maintenance Automation**: Scheduled pipeline runs automatically monitor status and report ingestion/dbt metrics via Email and Slack.
+* **Highly Customizable**: Easily toggle active sources, add custom API connectors, and configure custom dbt transformation models based on each client's specific business needs.
 * **Parallel ELT Ingestion**: Concurrently loads data from HubSpot, Xero, Shopify, and Procore via `dlt` with schema evolution support.
 * **OAuth Token Self-Rotation**: Automatically refreshes and persists Xero and Procore OAuth tokens to local secrets or GCP Secret Manager.
 * **Preflight Connection Resilience**: Validates credentials before running, gracefully skipping failing sources to keep other ingestions online.
