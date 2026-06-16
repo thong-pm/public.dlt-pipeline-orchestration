@@ -5,6 +5,7 @@ import tomlkit
 from utils.retry import retrying_get, retrying_post
 import sys
 from typing import Iterator, List, Tuple
+from utils.gcs_vault import GCSTokenVault
 
 
 def _load_config():
@@ -19,13 +20,20 @@ class ProcoreTokenManager:
         config = _load_config()
         self.env = config['sources']['procore']['environment']
 
+        # Read static client credentials from secrets.toml
         with open('.dlt/secrets.toml', 'r') as f:
             secrets = tomlkit.load(f)
 
         env_secrets = secrets.get('sources', {}).get('procore', {}).get(self.env, {})
         self.client_id = env_secrets.get("client_id")
         self.client_secret = env_secrets.get("client_secret")
-        self.refresh_token = env_secrets.get("refresh_token")
+
+        # Load dynamic tokens from GCS Vault, falling back to secrets.toml
+        self.vault = GCSTokenVault(f"procore_tokens_{self.env}.json")
+        vault_tokens = self.vault.read_tokens()
+
+        self.refresh_token = vault_tokens.get("refresh_token") or env_secrets.get("refresh_token")
+        self.access_token = vault_tokens.get("access_token")
 
         if not self.refresh_token or self.refresh_token == "<configure_me>":
             raise ValueError(
@@ -41,7 +49,6 @@ class ProcoreTokenManager:
 
         # Always force a token refresh on startup using the refresh_token.
         # Caching access_token with an assumed expiry caused stale-token 401s.
-        self.access_token = None
         self.token_expiry = 0
 
     def get_access_token(self) -> str:
@@ -65,12 +72,12 @@ class ProcoreTokenManager:
         self.refresh_token = data["refresh_token"]
         self.token_expiry = time.time() + data["expires_in"] - 60
 
-        with open('.dlt/secrets.toml', 'r') as f:
-            secrets = tomlkit.load(f)
-        secrets['sources']['procore'][self.env]['refresh_token'] = self.refresh_token
-        secrets['sources']['procore'][self.env]['access_token'] = self.access_token
-        with open('.dlt/secrets.toml', 'w') as f:
-            tomlkit.dump(secrets, f)
+        # Persist the rotated tokens to the GCS Token Vault (with local file fallback)
+        self.vault.write_tokens({
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token
+        })
+
 
     def list_companies(self):
         headers = {"Authorization": f"Bearer {self.get_access_token()}"}

@@ -15,7 +15,7 @@ def send_slack_message(webhook_url, payload):
 
 def parse_logs(log_file_path):
     if not os.path.exists(log_file_path):
-        return [], [], []
+        return [], [], [], []
 
     with open(log_file_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -27,33 +27,29 @@ def parse_logs(log_file_path):
     dlt_summaries = []
     dbt_summaries = []
     errors = []
+    skipped_sources = []
 
     # 1. Parse DLT Pipeline summaries
-    # Find segments between "Pipeline Summary" and the next "====="
     matches = re.finditer(r'([A-Za-z0-9]+)\s+Pipeline Summary\s*={10,}\s*(.*?)\s*={10,}', clean_content, re.DOTALL)
     for m in matches:
         source_name = m.group(1)
         body = m.group(2).strip()
-        # Clean up separators like ─── or ---
         body_lines = [line.strip() for line in body.splitlines() if not all(c in '─-=' for c in line.strip())]
         dlt_summaries.append(f"*{source_name} Pipeline Ingestion*:\n" + "\n".join(body_lines))
 
     # 2. Parse dbt Run summaries
-    # Matches line like: "Done. PASS=15 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=15"
     dbt_done_matches = re.findall(r'Done\.\s+PASS=\d+\s+WARN=\d+\s+ERROR=\d+.*', clean_content)
     if dbt_done_matches:
         for m in dbt_done_matches:
             dbt_summaries.append(f"dbt build: `{m.strip()}`")
 
     # 3. Parse dbt completion timing/summary
-    # Matches line like: "Finished running 2 table models, 13 view models in..."
     dbt_finish_matches = re.findall(r'Finished running \d+.*models in \d+.*', clean_content)
     if dbt_finish_matches:
         for m in dbt_finish_matches:
             dbt_summaries.append(m.strip())
 
     # 4. Extract errors if we failed
-    # Look for Traceback, Exception, or FAILED strings
     if "FAILED:" in clean_content or "Traceback (most recent call last):" in clean_content:
         for line in clean_content.splitlines():
             if "FAILED:" in line or "Error:" in line or "ResourceExtractionError" in line:
@@ -61,7 +57,14 @@ def parse_logs(log_file_path):
         if not errors and "Traceback (most recent call last):" in clean_content:
             errors.append("Python execution encountered a Traceback exception. Check Cloud Logging for details.")
 
-    return dlt_summaries, dbt_summaries, errors
+    # 5. Extract skipped sources
+    skipped_match = re.search(r'Skipp(?:ing|ed) \((?:not authorized|no auth)\):\s*(.*)', clean_content)
+    if skipped_match:
+        skipped_str = skipped_match.group(1).strip()
+        if skipped_str:
+            skipped_sources = [s.strip() for s in skipped_str.split(",")]
+
+    return dlt_summaries, dbt_summaries, errors, skipped_sources
 
 def main():
     parser = argparse.ArgumentParser(description="Send pipeline execution summaries to Slack")
@@ -91,10 +94,14 @@ def main():
     test_ok = args.test_code == 0
     full_success = dlt_ok and dbt_ok and test_ok
 
-    dlt_sums, dbt_sums, errors = parse_logs(args.log_file)
+    dlt_sums, dbt_sums, errors, skipped_sources = parse_logs(args.log_file)
 
     # Determine status color and emoji
-    if full_success:
+    if skipped_sources and full_success:
+        color = "#DAA038"  # Orange
+        status_text = "Pipeline Completed with Skipped Sources"
+        emoji = "⚠️"
+    elif full_success:
         color = "#2EB886"  # Green
         status_text = "Pipeline Executed Successfully"
         emoji = "✅"
@@ -125,6 +132,17 @@ def main():
             ]
         }
     ]
+
+    # Add Skipped Sources Warning
+    if skipped_sources:
+        blocks.append({"type": "divider"})
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "⚠️ *Skipped Sources (Authentication Failed)*:\n" + "\n".join([f"• `{s}`" for s in skipped_sources])
+            }
+        })
 
     # Add Ingestion Details
     if dlt_sums:

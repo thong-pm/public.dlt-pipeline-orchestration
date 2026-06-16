@@ -3,6 +3,7 @@ import requests
 import dlt
 import tomlkit
 from utils.retry import retrying_get, retrying_post
+from utils.gcs_vault import GCSTokenVault
 
 
 # ── Configured resources ──────────────────────────────────────────────────────
@@ -19,18 +20,23 @@ class XeroTokenManager:
     """Manages Xero OAuth2 token lifecycle with automatic refresh."""
 
     def __init__(self):
-        # Read directly from secrets.toml to get the latest rotated token
+        # Read static client credentials from secrets.toml
         with open('.dlt/secrets.toml', 'r') as f:
             secrets = tomlkit.load(f)
         xero = secrets.get('sources', {}).get('xero', {})
 
         self.client_id = xero.get("client_id")
         self.client_secret = xero.get("client_secret")
-        self.refresh_token = xero.get("refresh_token")
+
+        # Load dynamic tokens from GCS Vault, falling back to secrets.toml
+        self.vault = GCSTokenVault("xero_tokens.json")
+        vault_tokens = self.vault.read_tokens()
+
+        self.refresh_token = vault_tokens.get("refresh_token") or xero.get("refresh_token")
+        self.access_token = vault_tokens.get("access_token")
 
         # Always force a token refresh on startup using the refresh_token.
         # Caching access_token with an assumed expiry caused stale-token 401s.
-        self.access_token = None
         self.token_expiry = 0
 
     def get_access_token(self) -> str:
@@ -53,13 +59,12 @@ class XeroTokenManager:
         self.refresh_token = data["refresh_token"]
         self.token_expiry = time.time() + data["expires_in"] - 60
 
-        # Persist the rotated tokens back to secrets.toml
-        with open('.dlt/secrets.toml', 'r') as f:
-            secrets = tomlkit.load(f)
-        secrets['sources']['xero']['access_token'] = self.access_token
-        secrets['sources']['xero']['refresh_token'] = self.refresh_token
-        with open('.dlt/secrets.toml', 'w') as f:
-            tomlkit.dump(secrets, f)
+        # Persist the rotated tokens to the GCS Token Vault (with local file fallback)
+        self.vault.write_tokens({
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token
+        })
+
 
 
     def list_tenants(self):

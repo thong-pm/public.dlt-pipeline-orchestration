@@ -53,27 +53,3 @@ def download_secrets():
         print("[Secret Manager] Warning: Falling back to existing local secrets.toml.")
         return False
 
-def upload_secrets():
-    client, name = get_secret_client_and_name()
-    if not client:
-        return
-
-    if not os.path.exists(".dlt/secrets.toml"):
-        print("[Secret Manager] No secrets.toml file found to upload.")
-        return
-
-    try:
-        print(f"[Secret Manager] Reading secrets.toml for upload...")
-        with open(".dlt/secrets.toml", "r") as f:
-            payload = f.read()
-
-        print(f"[Secret Manager] Uploading new version to {name}...")
-        client.add_secret_version(
-            request={
-                "parent": name,
-                "payload": {"data": payload.encode("UTF-8")},
-            }
-        )
-        print("[Secret Manager] Successfully uploaded updated secrets.toml to GCP Secret Manager.")
-    except Exception as e:
-        print(f"[Secret Manager] ERROR uploading secrets: {e}")

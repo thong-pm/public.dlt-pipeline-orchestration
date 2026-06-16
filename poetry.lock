@@ -1297,7 +1297,7 @@ files = [
 google-auth = ">=2.14.1,<3.0.0"
 googleapis-common-protos = ">=1.63.2,<2.0.0"
 grpcio = [
-    {version = ">=1.33.2,<2.0.0", optional = true, markers = "extra == \"grpc\""},
+    {version = ">=1.33.2,<2.0.0", optional = true, markers = "python_version < \"3.11\" and extra == \"grpc\""},
     {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_version >= \"3.11\" and extra == \"grpc\""},
     {version = ">=1.75.1,<2.0.0", optional = true, markers = "python_version >= \"3.14\" and extra == \"grpc\""},
 ]
@@ -1496,8 +1496,8 @@ google-auth = ">=2.14.1,<3.0.0"
 google-cloud-core = ">=2.4.1,<3.0.0"
 google-resumable-media = ">=2.0.0,<3.0.0"
 grpcio = [
-    {version = ">=1.47.0,<2.0.0", optional = true, markers = "python_version < \"3.11\" and extra == \"pandas\""},
-    {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_version >= \"3.11\" and extra == \"pandas\" and python_version < \"3.14\""},
+    {version = ">=1.47.0,<2.0.0", optional = true, markers = "extra == \"pandas\""},
+    {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_version >= \"3.11\" and extra == \"pandas\""},
     {version = ">=1.75.1,<2.0.0", optional = true, markers = "python_version >= \"3.14\" and extra == \"pandas\""},
 ]
 packaging = ">=24.2.0"
@@ -1607,38 +1607,38 @@ google-api-core = {version = ">=2.11.0,<3.0.0", extras = ["grpc"]}
 google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
 grpc-google-iam-v1 = ">=0.14.0,<1.0.0"
 grpcio = [
-    {version = ">=1.33.2,<2.0.0"},
+    {version = ">=1.33.2,<2.0.0", markers = "python_version < \"3.14\""},
     {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
 ]
 proto-plus = [
-    {version = ">=1.22.3,<2.0.0"},
+    {version = ">=1.22.3,<2.0.0", markers = "python_version < \"3.13\""},
     {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
 ]
 protobuf = ">=4.25.8,<8.0.0"
 
 [[package]]
 name = "google-cloud-storage"
-version = "3.1.1"
+version = "2.19.0"
 description = "Google Cloud Storage API client library"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "google_cloud_storage-3.1.1-py3-none-any.whl", hash = "sha256:ba7e6ae2be5a7a08742f001e23ec6a0c17d78c620f63bf8e0e7c2cbdddb407de"},
-    {file = "google_cloud_storage-3.1.1.tar.gz", hash = "sha256:f9c8f965cafd1d38509f8e2b070339e0e9e5bf050774653bf36213d4ea6104c0"},
+    {file = "google_cloud_storage-2.19.0-py2.py3-none-any.whl", hash = "sha256:aeb971b5c29cf8ab98445082cbfe7b161a1f48ed275822f59ed3f1524ea54fba"},
+    {file = "google_cloud_storage-2.19.0.tar.gz", hash = "sha256:cd05e9e7191ba6cb68934d8eb76054d9be4562aa89dbc4236feee4d7d51342b2"},
 ]
 
 [package.dependencies]
-google-api-core = ">=2.15.0,<3.0.0"
-google-auth = ">=2.26.1,<3.0.0"
-google-cloud-core = ">=2.4.2,<3.0.0"
-google-crc32c = ">=1.1.3,<2.0.0"
-google-resumable-media = ">=2.7.2,<3.0.0"
-requests = ">=2.22.0,<3.0.0"
+google-api-core = ">=2.15.0,<3.0.0.dev0"
+google-auth = ">=2.26.1,<3.0.dev0"
+google-cloud-core = ">=2.3.0,<3.0.dev0"
+google-crc32c = ">=1.0,<2.0.dev0"
+google-resumable-media = ">=2.7.2"
+requests = ">=2.18.0,<3.0.0.dev0"
 
 [package.extras]
-protobuf = ["protobuf (>=3.20.2,<7.0.0)"]
-tracing = ["opentelemetry-api (>=1.1.0,<2.0.0)"]
+protobuf = ["protobuf (<6.0.0.dev0)"]
+tracing = ["opentelemetry-api (>=1.1.0)"]
 
 [[package]]
 name = "google-cloud-storage-control"
@@ -2623,7 +2623,7 @@ description = "Python package for creating and manipulating graphs and networks"
 optional = false
 python-versions = "!=3.14.1,>=3.11"
 groups = ["main"]
-markers = "python_version >= \"3.11\" and python_version <= \"3.13\""
+markers = "python_version <= \"3.13\" and python_version >= \"3.11\""
 files = [
     {file = "networkx-3.6.1-py3-none-any.whl", hash = "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762"},
     {file = "networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509"},
@@ -4767,4 +4767,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "362f79261b2fe3320e8830766f8bec810ea2d6e6b82e566866a48d424e7ed8d6"
+content-hash = "2268349f6afbe8eda4cd587238541f66af8f8846402b7fb0822607d377c4a8f3"

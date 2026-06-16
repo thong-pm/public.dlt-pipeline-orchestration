@@ -9,7 +9,7 @@ from sources.procore.source import get_procore_source
 from sources.shopify.source import get_shopify_source
 from utils.logging import print_load_summary
 from utils.preflight import run_preflight
-from utils.secret_manager import download_secrets, upload_secrets
+from utils.secret_manager import download_secrets
 
 
 def run_hubspot(full_refresh: bool, destination: str, results: dict):
@@ -163,7 +163,7 @@ if __name__ == "__main__":
             failed.append(source)
 
     print("=" * 55)
-    upload_secrets()
+
     if skipped:
         print(f"Skipped (no auth): {', '.join(s.capitalize() for s in skipped)}")
     if failed:

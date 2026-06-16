@@ -21,7 +21,8 @@ echo "=== Step 4: Update Cloud Run Job to latest image ==="
 $GCLOUD run jobs update "$JOB" \
   --image "$IMAGE" \
   --region "$REGION" \
-  --project "$PROJECT"
+  --project "$PROJECT" \
+  --update-env-vars "GCS_TOKEN_BUCKET=gcp-etl-497002-tokens"
 
 echo ""
 echo "=== Build & Deploy DONE ==="
