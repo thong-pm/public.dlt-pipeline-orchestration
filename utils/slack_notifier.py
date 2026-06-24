@@ -15,7 +15,7 @@ def send_slack_message(webhook_url, payload):
 
 def parse_logs(log_file_path):
     if not os.path.exists(log_file_path):
-        return [], [], [], []
+        return [], [], [], [], []
 
     with open(log_file_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -28,6 +28,7 @@ def parse_logs(log_file_path):
     dbt_summaries = []
     errors = []
     skipped_sources = []
+    disabled_sources = []
 
     # 1. Parse DLT Pipeline summaries
     matches = re.finditer(r'([A-Za-z0-9]+)\s+Pipeline Summary\s*={10,}\s*(.*?)\s*={10,}', clean_content, re.DOTALL)
@@ -64,7 +65,15 @@ def parse_logs(log_file_path):
         if skipped_str:
             skipped_sources = [s.strip() for s in skipped_str.split(",")]
 
-    return dlt_summaries, dbt_summaries, errors, skipped_sources
+    # 6. Extract disabled sources
+    disabled_match = re.search(r'Disabled \((?:in config)\):\s*(.*)', clean_content)
+    if disabled_match:
+        disabled_str = disabled_match.group(1).strip()
+        if disabled_str:
+            disabled_sources = [s.strip() for s in disabled_str.split(",")]
+
+    return dlt_summaries, dbt_summaries, errors, skipped_sources, disabled_sources
+
 
 def main():
     parser = argparse.ArgumentParser(description="Send pipeline execution summaries to Slack")
@@ -94,7 +103,7 @@ def main():
     test_ok = args.test_code == 0
     full_success = dlt_ok and dbt_ok and test_ok
 
-    dlt_sums, dbt_sums, errors, skipped_sources = parse_logs(args.log_file)
+    dlt_sums, dbt_sums, errors, skipped_sources, disabled_sources = parse_logs(args.log_file)
 
     # Determine status color and emoji
     if skipped_sources and full_success:
@@ -143,6 +152,18 @@ def main():
                 "text": "⚠️ *Skipped Sources (Authentication Failed)*:\n" + "\n".join([f"• `{s}`" for s in skipped_sources])
             }
         })
+
+    # Add Disabled Sources Warning
+    if disabled_sources:
+        blocks.append({"type": "divider"})
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Disabled Sources (Configured Off)*:\n" + "\n".join([f"• `{s}`" for s in disabled_sources])
+            }
+        })
+
 
     # Add Ingestion Details
     if dlt_sums:

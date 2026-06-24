@@ -54,21 +54,16 @@ cp .dlt/secrets.toml.example .dlt/secrets.toml
 
 ### 2. Local Development (PostgreSQL)
 
-To run the pipeline and build your dbt models locally:
+To run the pipeline and build your dbt models locally against a local Postgres database:
 
-1. Configure `.dlt/config.toml` with `destination = "postgres"`.
-2. Execute the python runners:
-   ```bash
-   poetry run python -m runners.run_all
-   ```
-3. Run and test dbt models locally:
-   ```bash
-   bash scripts/run_dbt_dev.sh
-   ```
+```bash
+bash scripts/run_dev.sh
+```
+*Note: This script automatically sets `PIPELINE__DESTINATION="postgres"` and runs both the DLT pipeline ingestion and the dbt transformations/tests.*
 
 ### 3. Production Deployment (GCP Cloud Run & BigQuery)
 
-Production runs execute on GCP Cloud Run Jobs and write directly to BigQuery.
+Production runs execute on GCP Cloud Run Jobs and write directly to BigQuery. There is **no need** to manually edit `.dlt/config.toml` before deploying; the GCP environment is configured to override the destination to `bigquery` automatically.
 
 GCP Services Used:
 * Cloud Run Jobs: Runs the pipeline execution container.
@@ -78,17 +73,15 @@ GCP Services Used:
 * Artifact Registry: Stores built Docker container images.
 * Cloud Build: Compiles and pushes container images from the repository.
 
-To run the pipeline on GCP:
+To deploy code updates to production:
+```bash
+bash scripts/rebuild_and_deploy.sh
+```
 
-1. Configure `.dlt/config.toml` with `destination = "bigquery"`.
-2. Build and deploy the container image:
-   ```bash
-   bash scripts/rebuild_and_deploy.sh
-   ```
-3. Trigger a job execution manually:
-   ```bash
-   bash scripts/trigger_cloud_run.sh
-   ```
+To run/test the production pipeline manually:
+```bash
+bash scripts/run_prod.sh
+```
 
 ---
 

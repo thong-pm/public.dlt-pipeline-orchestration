@@ -5,7 +5,6 @@ import tomlkit
 from utils.retry import retrying_get, retrying_post
 import sys
 from typing import Iterator, List, Tuple
-from utils.gcs_vault import GCSTokenVault
 
 
 def _load_config():
@@ -20,20 +19,15 @@ class ProcoreTokenManager:
         config = _load_config()
         self.env = config['sources']['procore']['environment']
 
-        # Read static client credentials from secrets.toml
+        # Read static and dynamic credentials from secrets.toml
         with open('.dlt/secrets.toml', 'r') as f:
             secrets = tomlkit.load(f)
 
         env_secrets = secrets.get('sources', {}).get('procore', {}).get(self.env, {})
         self.client_id = env_secrets.get("client_id")
         self.client_secret = env_secrets.get("client_secret")
-
-        # Load dynamic tokens from GCS Vault, falling back to secrets.toml
-        self.vault = GCSTokenVault(f"procore_tokens_{self.env}.json")
-        vault_tokens = self.vault.read_tokens()
-
-        self.refresh_token = vault_tokens.get("refresh_token") or env_secrets.get("refresh_token")
-        self.access_token = vault_tokens.get("access_token")
+        self.refresh_token = env_secrets.get("refresh_token")
+        self.access_token = env_secrets.get("access_token")
 
         if not self.refresh_token or self.refresh_token == "<configure_me>":
             raise ValueError(
@@ -72,11 +66,13 @@ class ProcoreTokenManager:
         self.refresh_token = data["refresh_token"]
         self.token_expiry = time.time() + data["expires_in"] - 60
 
-        # Persist the rotated tokens to the GCS Token Vault (with local file fallback)
-        self.vault.write_tokens({
-            "access_token": self.access_token,
-            "refresh_token": self.refresh_token
-        })
+        # Persist the rotated tokens directly to secrets.toml
+        with open('.dlt/secrets.toml', 'r') as f:
+            secrets = tomlkit.load(f)
+        secrets['sources']['procore'][self.env]['access_token'] = self.access_token
+        secrets['sources']['procore'][self.env]['refresh_token'] = self.refresh_token
+        with open('.dlt/secrets.toml', 'w') as f:
+            tomlkit.dump(secrets, f)
 
 
     def list_companies(self):

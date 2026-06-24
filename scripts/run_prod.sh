@@ -6,7 +6,11 @@ PROJECT=gcp-etl-497002
 REGION=us-central1
 JOB=dlt-pipeline-job
 
-echo "=== Step 5: Executing Cloud Run Job (end-to-end) ==="
+echo "======================================================="
+echo " TRIGGERING PRODUCTION PIPELINE (PROD ENV -> GCP/BIGQUERY)"
+echo "======================================================="
+echo ""
+echo "Executing Cloud Run Job: $JOB (project: $PROJECT, region: $REGION)..."
 echo "This will: download secrets → extract from APIs → load to BigQuery → run dbt → upload rotated tokens"
 echo ""
 

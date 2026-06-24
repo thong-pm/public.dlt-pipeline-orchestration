@@ -9,7 +9,7 @@ from sources.procore.source import get_procore_source
 from sources.shopify.source import get_shopify_source
 from utils.logging import print_load_summary
 from utils.preflight import run_preflight
-from utils.secret_manager import download_secrets
+from utils.secret_manager import download_secrets, upload_secrets
 
 
 def run_hubspot(full_refresh: bool, destination: str, results: dict):
@@ -114,6 +114,9 @@ if __name__ == "__main__":
         active_pipelines = ['hubspot', 'xero', 'procore', 'shopify']
     else:
         active_pipelines = [k for k, v in active_dict.items() if v]
+        disabled_pipelines = [k for k, v in active_dict.items() if not v]
+        if disabled_pipelines:
+            print(f"Disabled (in config): {', '.join(s.capitalize() for s in disabled_pipelines)}")
 
     # Pre-flight auth check
     # Checks all sources, prompts to authorize if in interactive mode,
@@ -146,6 +149,9 @@ if __name__ == "__main__":
         t.start()
     for t in threads:
         t.join()
+
+    # Upload rotated tokens back to GCS
+    upload_secrets()
 
     # Summary
     print("\n" + "=" * 55)

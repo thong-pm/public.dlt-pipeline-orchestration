@@ -10,6 +10,10 @@ JOB=dlt-pipeline-job
 cd /home/phamthong99/projects/dlt-pipeline-testing
 
 echo ""
+echo "=== Step 1: Merging and Deploying secrets.toml to GCS ==="
+.venv/bin/python scripts/deploy_secrets.py
+
+echo ""
 echo "=== Step 3: Build & Push image via Cloud Build ==="
 $GCLOUD builds submit \
   --tag "$IMAGE" \
