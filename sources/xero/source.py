@@ -19,6 +19,7 @@ class XeroTokenManager:
     """Manages Xero OAuth2 token lifecycle with automatic refresh."""
 
     def __init__(self):
+        import threading
         # Read dynamic and static credentials from secrets.toml
         with open('.dlt/secrets.toml', 'r') as f:
             secrets = tomlkit.load(f)
@@ -32,11 +33,13 @@ class XeroTokenManager:
         # Always force a token refresh on startup using the refresh_token.
         # Caching access_token with an assumed expiry caused stale-token 401s.
         self.token_expiry = 0
+        self._lock = threading.Lock()
 
     def get_access_token(self) -> str:
-        if time.time() >= self.token_expiry:
-            self._refresh()
-        return self.access_token
+        with self._lock:
+            if time.time() >= self.token_expiry:
+                self._refresh()
+            return self.access_token
 
     def _refresh(self):
         response = retrying_post(

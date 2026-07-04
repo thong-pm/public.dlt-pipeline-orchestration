@@ -16,6 +16,7 @@ class ProcoreTokenManager:
     """Manages Procore OAuth2 token lifecycle."""
 
     def __init__(self):
+        import threading
         config = _load_config()
         self.env = config['sources']['procore']['environment']
 
@@ -44,11 +45,13 @@ class ProcoreTokenManager:
         # Always force a token refresh on startup using the refresh_token.
         # Caching access_token with an assumed expiry caused stale-token 401s.
         self.token_expiry = 0
+        self._lock = threading.Lock()
 
     def get_access_token(self) -> str:
-        if time.time() >= self.token_expiry:
-            self._refresh()
-        return self.access_token
+        with self._lock:
+            if time.time() >= self.token_expiry:
+                self._refresh()
+            return self.access_token
 
     def _refresh(self):
         response = retrying_post(

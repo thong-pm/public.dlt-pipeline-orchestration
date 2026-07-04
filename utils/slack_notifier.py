@@ -41,8 +41,9 @@ def parse_logs(log_file_path):
     # 2. Parse dbt Run summaries
     dbt_done_matches = re.findall(r'Done\.\s+PASS=\d+\s+WARN=\d+\s+ERROR=\d+.*', clean_content)
     if dbt_done_matches:
-        for m in dbt_done_matches:
-            dbt_summaries.append(f"dbt build: `{m.strip()}`")
+        for idx, m in enumerate(dbt_done_matches):
+            label = "dbt run (models)" if idx == 0 else "dbt test (data tests)"
+            dbt_summaries.append(f"{label}: `{m.strip()}`")
 
     # 3. Parse dbt completion timing/summary
     dbt_finish_matches = re.findall(r'Finished running \d+.*models in \d+.*', clean_content)
