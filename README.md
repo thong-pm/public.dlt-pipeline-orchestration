@@ -73,7 +73,7 @@ GCP Services Used:
 * Artifact Registry: Stores built Docker container images.
 * Cloud Build: Compiles and pushes container images from the repository.
 
-To deploy code updates to production:
+To deploy code updates (pipeline Python changes) to production:
 ```bash
 bash scripts/rebuild_and_deploy.sh
 ```
@@ -82,6 +82,20 @@ To run/test the production pipeline manually:
 ```bash
 bash scripts/run_prod.sh
 ```
+
+---
+
+## Token Re-authorization & Sync (GCP)
+
+If a token expires or fails (e.g., Xero or Procore), do **NOT** run the full rebuild script. Simply run the interactive auth fixer:
+```bash
+python scripts/fix_auth.py
+```
+This script will automatically:
+1. Pull the active remote tokens from GCP GCS.
+2. Prompt you to authorize the failed SaaS.
+3. Open your browser to complete the OAuth flow.
+4. Immediately upload the updated secrets back to GCP (without rebuilding the pipeline).
 
 ---
 
@@ -96,12 +110,12 @@ Each source requires a one-time setup to authorize the connection.
 ### Xero
 * Create an app at developers.xero.com.
 * Set the Redirect URI to `http://localhost:8080/callback`.
-* Run `poetry run python sources/xero/auth.py` once to perform the OAuth handshake.
+* Run `python scripts/fix_auth.py` (select Xero) once to perform the OAuth handshake.
 * The pipeline handles token rotation automatically thereafter.
 
 ### Procore
 * Create an app at developers.procore.com.
 * Set the Redirect URI to `http://localhost:8080/callback`.
 * Install the app in your Procore Company Admin under App Management.
-* Run `poetry run python sources/procore/auth.py` once.
+* Run `python scripts/fix_auth.py` (select Procore) once.
 * Tokens are persisted and rotated automatically in `.dlt/secrets.toml`.
