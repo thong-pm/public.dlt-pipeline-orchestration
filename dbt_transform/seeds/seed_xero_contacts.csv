@@ -1,0 +1,7 @@
+contact_id,name,first_name,last_name,email_address,contact_status,is_customer,is_supplier
+xero_c_2001,Acme Corp,John,Doe,john.doe@acme.com,ACTIVE,true,false
+xero_c_2002,Globex Corp,Jane,Smith,jane.smith@globex.com,ACTIVE,true,false
+xero_c_2003,Apex Design,Alice,Jones,alice.jones@apex.com,ACTIVE,true,false
+xero_c_2004,Eco Joinery Co,Bob,Miller,bob.miller@ecojoinery.com,ACTIVE,true,false
+xero_c_2005,Modern Office Group,Charlie,Brown,charlie.brown@modernoffice.com,ACTIVE,true,false
+xero_c_2006,Random Supplier,Dave,Supplier,dave@supplier.com,ACTIVE,false,true

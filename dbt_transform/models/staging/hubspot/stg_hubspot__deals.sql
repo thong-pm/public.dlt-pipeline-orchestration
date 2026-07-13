@@ -1,5 +1,5 @@
 with source as (
-    {{ get_source_or_empty('hubspot', 'deals', {
+    {{ get_source_data('hubspot', 'deals', 'seed_hubspot_deals', {
         'hs_object_id': dbt.type_bigint(),
         'dealname': dbt.type_string(),
         'dealstage': dbt.type_string(),

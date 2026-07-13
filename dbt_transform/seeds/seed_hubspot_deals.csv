@@ -1,0 +1,16 @@
+hs_object_id,dealname,dealstage,amount,deal_currency_code,hubspot_owner_id,num_notes,notes_last_updated,closed_won_reason
+1001,Luxury Villa Millwork Project,closedwon,150000,USD,9901,3,2026-06-15 10:00:00,Price was competitive
+1002,Commercial Office Fitout,appointmentscheduled,85000,USD,9902,1,2026-07-01 14:30:00,
+1003,Residential Remodel A,presentationsubmitted,45000,USD,9901,5,2026-07-05 09:15:00,
+1004,Custom Penthouse Kitchen,closedwon,220000,USD,9903,8,2026-05-20 16:45:00,High quality references
+1005,Boutique Hotel Lobby,closedlost,120000,USD,9902,2,2026-06-10 11:30:00,Competitor had faster lead time
+1006,Custom Cabinetry Block B,closedwon,65000,USD,9901,4,2026-06-25 15:00:00,Local manufacture advantage
+1007,Urban Loft Renovations,contractsent,35000,USD,9903,2,2026-07-08 13:00:00,
+1008,Suburban Extension Millwork,closedwon,110000,USD,9902,6,2026-06-05 10:30:00,Relationship building
+1009,Penthouse Phase 2,appointmentscheduled,180000,USD,9903,0,2026-07-09 17:00:00,
+1010,Eco-Cabin Custom Joinery,presentationsubmitted,95000,USD,9901,3,2026-07-07 14:00:00,
+1011,Modern Office Reception,closedwon,55000,USD,9902,2,2026-06-12 11:00:00,Fits schedule
+1012,Restaurant Dining Seating,contractsent,75000,USD,9903,4,2026-07-06 15:30:00,
+1013,Luxury Penthouse Wardrobes,closedwon,130000,USD,9901,7,2026-05-15 09:00:00,Quality materials
+1014,Commercial Lobby Panelling,closedlost,250000,USD,9902,5,2026-05-30 16:00:00,Budget mismatch
+1015,Beachside House Decking,presentationsubmitted,40000,USD,9903,1,2026-07-09 10:00:00,

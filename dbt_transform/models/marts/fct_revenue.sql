@@ -12,5 +12,7 @@ select
     transaction_date,
     extract(year from transaction_date) as transaction_year,
     extract(month from transaction_date) as transaction_month,
-    extract(quarter from transaction_date) as transaction_quarter
+    extract(quarter from transaction_date) as transaction_quarter,
+    customer_email,
+    {{ generate_surrogate_key(['customer_email']) }} as customer_key
 from revenue_source

@@ -13,7 +13,11 @@ models:
         description: "Lowercased, deduplicated email address."
         tests:
           - not_null
-
+      - name: first_name
+      - name: last_name
+      - name: contact_status
+      - name: golden_source
+        description: "The primary source system this record was consolidated from."
   - name: fct_revenue
     description: "Grain-level billing and CRM sales revenue transactions."
     columns:
@@ -26,3 +30,60 @@ models:
         description: "Total value of the transaction."
         tests:
           - not_null
+      - name: source_system
+        description: "Source SaaS platform (HubSpot, Xero, Shopify, Procore)"
+      - name: transaction_date
+      - name: currency_code
+      - name: transaction_year
+      - name: transaction_month
+      - name: transaction_quarter
+      - name: customer_email
+      - name: customer_key
+  - name: fct_pipeline
+    description: "Sales pipeline opportunities sourced from HubSpot CRM."
+    columns:
+      - name: deal_key
+        tests:
+          - unique
+          - not_null
+      - name: deal_id
+      - name: deal_name
+      - name: deal_stage
+      - name: amount
+      - name: currency_code
+      - name: owner_id
+      - name: notes_last_updated_at
+      - name: closed_won_reason
+      - name: customer_email
+      - name: customer_key
+  - name: dim_projects
+    description: "Operational and construction projects consolidated from Procore."
+    columns:
+      - name: project_key
+        tests:
+          - unique
+          - not_null
+      - name: project_id
+      - name: project_name
+      - name: is_active
+      - name: project_number
+      - name: company_id
+      - name: company_name
+      - name: created_at
+      - name: updated_at
+  - name: dim_products
+    description: "Shopify product catalog, inventory and variant pricing analytics."
+    columns:
+      - name: product_variant_key
+        tests:
+          - unique
+          - not_null
+      - name: product_id
+      - name: variant_id
+      - name: product_title
+      - name: variant_title
+      - name: vendor
+      - name: product_type
+      - name: price
+      - name: grams
+      - name: is_taxable

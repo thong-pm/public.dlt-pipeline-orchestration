@@ -1,0 +1,11 @@
+value,deals_id,_dlt_root_id,_dlt_parent_id,_dlt_list_idx,_dlt_id
+2001,1001,root1,parent1,0,dlt_id_1
+2002,1002,root2,parent2,0,dlt_id_2
+2001,1003,root1,parent1,1,dlt_id_3
+2003,1004,root3,parent3,0,dlt_id_4
+2002,1005,root2,parent2,1,dlt_id_5
+2004,1006,root4,parent4,0,dlt_id_6
+2003,1008,root3,parent3,1,dlt_id_7
+2004,1010,root4,parent4,1,dlt_id_8
+2005,1011,root5,parent5,0,dlt_id_9
+2003,1013,root3,parent3,2,dlt_id_10

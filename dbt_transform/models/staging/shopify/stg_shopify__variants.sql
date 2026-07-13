@@ -1,5 +1,14 @@
 with source as (
-    select * from {{ source('shopify', 'products__variants') }}
+    {{ get_source_data('shopify', 'products__variants', 'seed_shopify_variants', {
+        'id': dbt.type_bigint(),
+        'product_id': dbt.type_bigint(),
+        'title': dbt.type_string(),
+        'price': dbt.type_numeric(),
+        'grams': dbt.type_int(),
+        'taxable': dbt.type_string(),
+        'created_at': dbt.type_string(),
+        'updated_at': dbt.type_string()
+    }) }}
 ),
 
 renamed as (
@@ -9,7 +18,7 @@ renamed as (
         title as variant_title,
         cast(price as numeric) as price,
         cast(grams as integer) as grams,
-        taxable as is_taxable,
+        cast(taxable as {{ dbt.type_boolean() }}) as is_taxable,
         created_at,
         updated_at
     from source

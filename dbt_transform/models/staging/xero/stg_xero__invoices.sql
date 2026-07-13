@@ -1,5 +1,20 @@
 with source as (
-    select * from {{ source('xero', 'invoices') }}
+    {{ get_source_data('xero', 'invoices', 'seed_xero_invoices', {
+        'invoice_id': dbt.type_string(),
+        'invoice_number': dbt.type_string(),
+        'status': dbt.type_string(),
+        'type': dbt.type_string(),
+        'total': dbt.type_numeric(),
+        'sub_total': dbt.type_numeric(),
+        'total_tax': dbt.type_numeric(),
+        'amount_due': dbt.type_numeric(),
+        'amount_paid': dbt.type_numeric(),
+        'currency_code': dbt.type_string(),
+        'date_string': dbt.type_string(),
+        'due_date_string': dbt.type_string(),
+        'contact__contact_id': dbt.type_string(),
+        'contact__name': dbt.type_string()
+    }) }}
 ),
 
 renamed as (
