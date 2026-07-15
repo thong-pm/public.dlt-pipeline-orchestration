@@ -34,12 +34,33 @@ jobs:
           cd evidence_dashboard
           npm install
 
+      - name: Configure Production BigQuery Datasource
+        run: |
+          cat <<EOF > evidence_dashboard/sources/postgres/connection.yaml
+          name: postgres
+          type: bigquery
+          options:
+            project_id: ${{ secrets.GCP_PROJECT_ID }}
+            dataset: dbt_prod
+            authenticator: gcloud-cli
+          EOF
+
       - name: Build Dashboard
         run: |
+          echo "" >> evidence_dashboard/evidence.config.yaml
+          echo "deployment:" >> evidence_dashboard/evidence.config.yaml
+          echo "  basePath: /public.dlt-pipeline-orchestration" >> evidence_dashboard/evidence.config.yaml
           cd evidence_dashboard
+          npm run sources
           npm run build
         env:
-          EVIDENCE_DB_TYPE: bigquery
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          EVIDENCE_BQ_DATASET: dbt_prod
-          BASE_PATH: /public.dlt-pipeline-orchestration # Deploys to subpath on Github Pages
+          SVELTE_BASE_PATH: public.dlt-pipeline-orchestration
+
+      - name: Create .nojekyll file
+        run: touch evidence_dashboard/build/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: evidence_dashboard/build
+          branch: gh-pages

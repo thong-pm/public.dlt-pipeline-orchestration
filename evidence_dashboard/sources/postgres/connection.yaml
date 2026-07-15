@@ -1,5 +1,5 @@
 name: postgres
-type: ${EVIDENCE_DB_TYPE}
+type: postgres
 options:
   host: ${EVIDENCE_DB_HOST}
   port: ${EVIDENCE_DB_PORT}
@@ -7,5 +7,5 @@ options:
   user: ${EVIDENCE_DB_USER}
   password: ${EVIDENCE_DB_PASSWORD}
   ssl: ${EVIDENCE_DB_SSL}
-  projectId: ${GCP_PROJECT_ID}
-  dataset: ${EVIDENCE_BQ_DATASET}
+
+

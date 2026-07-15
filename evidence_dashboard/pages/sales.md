@@ -3,13 +3,19 @@ title: "Sales & Win-Loss Analysis"
 ---
 
 <script>
+  import { goto } from '$app/navigation';
+
   let activeFilter = 'ytd';
   $: activeFilter = inputs?.time_filter || 'ytd';
 
   onMount(() => {
-    if (browser && inputs) {
-      const param = $page.url.searchParams.get('time_filter');
-      inputs.time_filter = param || 'ytd';
+    if (browser) {
+      localStorage.setItem('evidence-theme', 'light');
+      document.documentElement.setAttribute('data-theme', 'light');
+      if (inputs) {
+        const param = $page.url.searchParams.get('time_filter');
+        inputs.time_filter = param || 'ytd';
+      }
     }
   });
 
@@ -163,9 +169,9 @@ order by pipeline_value desc
 <!-- UI Layout -->
 
 <div class="flex gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
-  <a href={browser ? "/?time_filter=" + activeFilter : "/"} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Overview Cockpit</a>
-  <a href={browser ? "/sales?time_filter=" + activeFilter : "/sales"} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all">Sales & Win-Loss</a>
-  <a href={browser ? "/operations?time_filter=" + activeFilter : "/operations"} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Operations & Vendors</a>
+  <button on:click={() => goto(addBasePath(`/?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Overview Cockpit</button>
+  <button on:click={() => goto(addBasePath(`/sales?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all">Sales & Win-Loss</button>
+  <button on:click={() => goto(addBasePath(`/operations?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Operations & Vendors</button>
 </div>
 
 <div class="flex justify-between items-center mb-1.5 mt-0.5">
@@ -188,7 +194,7 @@ order by pipeline_value desc
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 mb-3.5">
   
   <!-- KPI 1: Win Rate -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-2.5 px-3.5 flex flex-col justify-between h-[105px]">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px]">
     <div>
       <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">🎯 Pipeline Win Rate</span>
       <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
@@ -199,18 +205,18 @@ order by pipeline_value desc
   </div>
 
   <!-- KPI 2: Lost Opportunity Value -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-red-500 py-2.5 px-3.5 flex flex-col justify-between h-[105px]">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-red-500 py-3 px-3.5 flex flex-col justify-between h-[120px]">
     <div>
       <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">💸 Lost Opportunity Value</span>
       <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
         <Value data={kpi_lost_value} column=lost_value fmt=usd />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Total lost contract values</div>
+    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Sum of HubSpot deal amounts marked as 'Closed Lost'</div>
   </div>
 
   <!-- KPI 3: Open Deals in Funnel -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-2.5 px-3.5 flex flex-col justify-between h-[105px]">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px]">
     <div>
       <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">💼 Open Deals in Funnel</span>
       <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
@@ -221,7 +227,7 @@ order by pipeline_value desc
   </div>
 
   <!-- KPI 4: Top Customer Concentration -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-2.5 px-3.5 flex flex-col justify-between h-[105px]">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px]">
     <div>
       <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">⚠️ Max Client Concentration</span>
       <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">

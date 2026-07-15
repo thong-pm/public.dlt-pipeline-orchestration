@@ -1,1 +1,1 @@
-select * from public.dim_customers
+select * from dbt_prod.dim_customers

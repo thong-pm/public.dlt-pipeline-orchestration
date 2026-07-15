@@ -21,6 +21,7 @@ dbt deps --profiles-dir . 2>&1 | tee -a "$LOG_FILE"
 DEPS_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== [3/3] Running and Testing dbt Models (Target: $DBT_TARGET) ===" | tee -a "$LOG_FILE"
+dbt seed --profiles-dir . --target "$DBT_TARGET" 2>&1 | tee -a "$LOG_FILE"
 dbt run --profiles-dir . --target "$DBT_TARGET" 2>&1 | tee -a "$LOG_FILE"
 DBT_RUN_EXIT_CODE=${PIPESTATUS[0]}
 

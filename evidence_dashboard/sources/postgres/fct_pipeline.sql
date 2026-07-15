@@ -1,1 +1,1 @@
-select * from public.fct_pipeline
+select * from dbt_prod.fct_pipeline

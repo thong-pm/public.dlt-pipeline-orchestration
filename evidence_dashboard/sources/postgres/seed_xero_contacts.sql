@@ -1,1 +1,1 @@
-select * from seed_xero_contacts;
+select * from dbt_prod.seed_xero_contacts;

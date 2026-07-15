@@ -1,1 +1,1 @@
-select * from public.fct_revenue
+select * from dbt_prod.fct_revenue

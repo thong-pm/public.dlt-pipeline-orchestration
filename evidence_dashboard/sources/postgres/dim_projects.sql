@@ -1,1 +1,1 @@
-select * from public.dim_projects
+select * from dbt_prod.dim_projects
