@@ -1,16 +1,64 @@
 hs_object_id,dealname,dealstage,amount,deal_currency_code,hubspot_owner_id,num_notes,notes_last_updated,closed_won_reason
-1001,Luxury Villa Millwork Project,closedwon,150000,USD,9901,3,2026-06-15 10:00:00,Price was competitive
-1002,Commercial Office Fitout,appointmentscheduled,85000,USD,9902,1,2026-07-01 14:30:00,
-1003,Residential Remodel A,presentationsubmitted,45000,USD,9901,5,2026-07-05 09:15:00,
-1004,Custom Penthouse Kitchen,closedwon,220000,USD,9903,8,2026-05-20 16:45:00,High quality references
-1005,Boutique Hotel Lobby,closedlost,120000,USD,9902,2,2026-06-10 11:30:00,Competitor had faster lead time
-1006,Custom Cabinetry Block B,closedwon,65000,USD,9901,4,2026-06-25 15:00:00,Local manufacture advantage
-1007,Urban Loft Renovations,contractsent,35000,USD,9903,2,2026-07-08 13:00:00,
-1008,Suburban Extension Millwork,closedwon,110000,USD,9902,6,2026-06-05 10:30:00,Relationship building
-1009,Penthouse Phase 2,appointmentscheduled,180000,USD,9903,0,2026-07-09 17:00:00,
-1010,Eco-Cabin Custom Joinery,presentationsubmitted,95000,USD,9901,3,2026-07-07 14:00:00,
-1011,Modern Office Reception,closedwon,55000,USD,9902,2,2026-06-12 11:00:00,Fits schedule
-1012,Restaurant Dining Seating,contractsent,75000,USD,9903,4,2026-07-06 15:30:00,
-1013,Luxury Penthouse Wardrobes,closedwon,130000,USD,9901,7,2026-05-15 09:00:00,Quality materials
-1014,Commercial Lobby Panelling,closedlost,250000,USD,9902,5,2026-05-30 16:00:00,Budget mismatch
-1015,Beachside House Decking,presentationsubmitted,40000,USD,9903,1,2026-07-09 10:00:00,
+1001,Luxury Villa Millwork Project,closedwon,150345.56,USD,9901,3,2026-06-15 10:00:00,Price was competitive
+1002,Commercial Office Fitout,appointmentscheduled,85120.75,USD,9902,1,2026-07-01 14:30:00,
+1003,Residential Remodel A,presentationsubmitted,45012.3,USD,9901,5,2026-07-05 09:15:00,
+1004,Custom Penthouse Kitchen,closedwon,220450.85,USD,9903,8,2026-05-20 16:45:00,High quality references
+1005,Boutique Hotel Lobby,closedlost,120670.2,USD,9902,2,2026-06-10 11:30:00,Competitor had faster lead time
+1006,Custom Cabinetry Block B,closedwon,65230.4,USD,9901,4,2026-06-25 15:00:00,Local manufacture advantage
+1007,Urban Loft Renovations,contractsent,35085.15,USD,9903,2,2026-07-08 13:00:00,
+1008,Suburban Extension Millwork,closedwon,110290.6,USD,9902,6,2026-06-05 10:30:00,Relationship building
+1009,Penthouse Phase 2,appointmentscheduled,180125.75,USD,9903,0,2026-07-09 17:00:00,
+1010,Eco-Cabin Custom Joinery,presentationsubmitted,95340.9,USD,9901,3,2026-07-07 14:00:00,
+1011,Modern Office Reception,closedwon,55455.5,USD,9902,2,2026-06-12 11:00:00,Fits schedule
+1012,Restaurant Dining Seating,contractsent,75080.25,USD,9903,4,2026-07-06 15:30:00,
+1013,Luxury Penthouse Wardrobes,closedwon,130750.35,USD,9901,7,2026-05-15 09:00:00,Quality materials
+1014,Commercial Lobby Panelling,closedlost,250890.1,USD,9902,5,2026-05-30 16:00:00,Budget mismatch
+1015,Beachside House Decking,presentationsubmitted,40115.8,USD,9903,1,2026-07-09 10:00:00,
+1100,Luxury Villa Phase 3,closedwon,41399.23,USD,9903,2,2025-05-01 13:00:00,Quality materials
+1101,Apex Joinery Phase 1,closedwon,139563.14,USD,9903,7,2025-05-08 17:00:00,Quality materials
+1102,Villa Millwork Phase 2,closedwon,49876.72,USD,9901,2,2025-05-25 11:00:00,Local manufacture advantage
+1103,Wood Samples Phase 1,closedwon,180698.52,USD,9901,5,2025-05-26 09:00:00,Relationship building
+1104,Penthouse Kitchen Phase 2,closedwon,182635.44,USD,9901,7,2025-05-23 10:00:00,High quality references
+1105,Wood Samples Phase 3,closedwon,36424.4,USD,9901,4,2025-06-07 13:00:00,Quality materials
+1106,Penthouse Kitchen Phase 1,closedlost,156488.42,USD,9902,5,2025-06-22 14:00:00,Budget mismatch
+1107,Villa Millwork Phase 2,closedwon,166549.3,USD,9902,3,2025-06-07 14:00:00,Quality materials
+1108,Modern Reception Phase 3,closedwon,103962.53,USD,9901,3,2025-06-29 15:00:00,Price was competitive
+1109,Lobby Panelling Phase 1,closedwon,133845.35,USD,9903,5,2025-07-13 16:00:00,Price was competitive
+1110,Apex Joinery Phase 2,closedlost,180502.1,USD,9903,2,2025-07-15 09:00:00,Competitor had faster lead time
+1111,Eco Cabinetry Phase 2,closedwon,147001.73,USD,9903,1,2025-07-27 17:00:00,Fits schedule
+1112,Wood Samples Phase 1,closedwon,38704.55,USD,9901,3,2025-08-08 09:00:00,Relationship building
+1113,Lobby Panelling Phase 1,closedlost,139071.84,USD,9903,6,2025-08-07 17:00:00,Budget mismatch
+1114,Modern Reception Phase 1,closedwon,35244.14,USD,9903,4,2025-08-29 17:00:00,Price was competitive
+1115,Villa Millwork Phase 1,closedlost,107264.98,USD,9903,8,2025-08-08 10:00:00,Budget mismatch
+1116,Loft Renovations Phase 2,closedwon,55465.59,USD,9903,7,2025-09-24 16:00:00,Price was competitive
+1117,Acme Office Phase 2,closedwon,153094.8,USD,9901,4,2025-09-22 10:00:00,Price was competitive
+1118,Penthouse Kitchen Phase 2,closedwon,154283.56,USD,9901,1,2025-09-09 16:00:00,Fits schedule
+1119,Villa Millwork Phase 2,closedwon,59199.57,USD,9901,3,2025-10-25 12:00:00,Relationship building
+1120,Lobby Panelling Phase 3,closedwon,130899.41,USD,9901,4,2025-10-10 15:00:00,Relationship building
+1121,Acme Office Phase 2,closedwon,105456.06,USD,9901,1,2025-10-24 14:00:00,Fits schedule
+1122,Acme Office Phase 1,closedwon,117627.05,USD,9903,2,2025-11-22 12:00:00,Price was competitive
+1123,Loft Renovations Phase 1,closedwon,132470.44,USD,9902,6,2025-11-22 14:00:00,Local manufacture advantage
+1124,Loft Renovations Phase 1,closedwon,165683.24,USD,9902,3,2025-11-17 13:00:00,Local manufacture advantage
+1125,Wood Samples Phase 2,closedwon,174080.97,USD,9901,5,2025-11-20 17:00:00,Price was competitive
+1126,Apex Joinery Phase 2,closedwon,57575.57,USD,9902,8,2025-11-09 13:00:00,Quality materials
+1127,Luxury Villa Phase 1,closedlost,78369.05,USD,9903,5,2025-12-21 15:00:00,Competitor had faster lead time
+1128,Loft Renovations Phase 3,closedwon,26547.15,USD,9903,3,2025-12-24 16:00:00,Price was competitive
+1129,Loft Renovations Phase 1,closedwon,168827.94,USD,9903,4,2025-12-14 11:00:00,High quality references
+1130,Penthouse Kitchen Phase 2,closedlost,28965.82,USD,9902,7,2026-01-08 11:00:00,Specification discrepancy
+1131,Penthouse Kitchen Phase 2,closedlost,164546.69,USD,9901,4,2026-01-09 11:00:00,Budget mismatch
+1132,Modern Reception Phase 1,closedlost,28786.31,USD,9902,6,2026-01-12 13:00:00,Competitor had faster lead time
+1133,Eco-Cabin Project Phase 2,closedlost,127637.08,USD,9903,6,2026-01-28 10:00:00,Budget mismatch
+1134,Villa Millwork Phase 1,closedwon,42344.41,USD,9902,6,2026-01-04 13:00:00,Relationship building
+1135,Penthouse Kitchen Phase 3,closedwon,173092.03,USD,9903,4,2026-02-09 09:00:00,Fits schedule
+1136,Eco-Cabin Project Phase 3,closedwon,74485.55,USD,9902,7,2026-02-22 10:00:00,Relationship building
+1137,Modern Reception Phase 3,closedwon,116056.84,USD,9903,1,2026-02-22 15:00:00,Relationship building
+1138,Eco Cabinetry Phase 3,closedwon,100709.79,USD,9901,2,2026-02-15 16:00:00,Quality materials
+1139,Penthouse Kitchen Phase 1,closedwon,28908.06,USD,9902,2,2026-02-22 13:00:00,High quality references
+1140,Lobby Panelling Phase 3,closedwon,25887.17,USD,9902,4,2026-03-16 15:00:00,Price was competitive
+1141,Modern Reception Phase 2,closedwon,46334.26,USD,9903,6,2026-03-02 17:00:00,Relationship building
+1142,Office Fitout Phase 2,closedwon,66470.65,USD,9903,5,2026-03-29 11:00:00,High quality references
+1143,Office Fitout Phase 2,closedwon,167884.29,USD,9901,3,2026-03-03 13:00:00,Price was competitive
+1144,Apex Joinery Phase 2,closedwon,91523.88,USD,9902,7,2026-03-03 15:00:00,High quality references
+1145,Office Fitout Phase 2,closedlost,161551.67,USD,9903,4,2026-04-16 09:00:00,Budget mismatch
+1146,Modern Reception Phase 2,closedwon,78780.73,USD,9902,3,2026-04-08 13:00:00,Quality materials
+1147,Villa Millwork Phase 1,closedwon,163696.22,USD,9901,5,2026-04-13 09:00:00,High quality references

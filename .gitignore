@@ -31,3 +31,7 @@ scratch/
 # Personal note
 docs/
 *note.txt
+
+# Evidence
+evidence_dashboard/.env
+node_modules/
