@@ -8,6 +8,36 @@ title: "Sales & Win-Loss Analysis"
   let activeFilter = 'ytd';
   $: activeFilter = inputs?.time_filter || 'ytd';
 
+  const DASHBOARD_DAY = '2026-06-15';
+
+  function formatDate(date) {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  }
+
+  function getFormattedDateRange(filter, refStr) {
+    const ref = new Date(refStr + 'T00:00:00');
+    const endText = formatDate(ref);
+
+    if (filter === 'mtd') {
+      const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      return `${formatDate(start)} - ${endText}`;
+    }
+    if (filter === 'qtd') {
+      const quarterMonth = Math.floor(ref.getMonth() / 3) * 3;
+      const start = new Date(ref.getFullYear(), quarterMonth, 1);
+      return `${formatDate(start)} - ${endText}`;
+    }
+    if (filter === 'ytd') {
+      const start = new Date(ref.getFullYear(), 0, 1);
+      return `${formatDate(start)} - ${endText}`;
+    }
+    return `All Time - ${endText}`;
+  }
+
+  let dateRangeText = '';
+  $: dateRangeText = getFormattedDateRange(activeFilter, DASHBOARD_DAY);
+
   onMount(() => {
     if (browser) {
       localStorage.setItem('evidence-theme', 'light');
@@ -33,26 +63,35 @@ title: "Sales & Win-Loss Analysis"
 </script>
 
 <style>
-  /* Lock page sizing for no-scroll cockpit */
-  :global(body) {
-    background-color: #F2F2F2 !important;
-    overflow-y: hidden !important;
-    max-height: 100vh !important;
+  /* Hide the top navigation bar (which contains the Evidence logo) */
+  :global(header) { display: none !important; }
+  
+  /* Hide the left sidebar navigation completely */
+  :global(aside) { display: none !important; }
+  
+  /* Hide the "Built with Evidence" footer */
+  :global(footer) { display: none !important; }
+  
+  /* Hide the default page title header to save vertical space */
+  :global(h1) { display: none !important; }
+  
+  /* Hide the default Svelte breadcrumbs / Home link at the top of the page */
+  :global(main > :first-child) { display: none !important; }
+  :global(.breadcrumbs), :global(.breadcrumb) { display: none !important; }
+  
+  /* Set global background and text colors */
+  :global(body) { 
+    background-color: #F2F2F2 !important; 
+    color: #383D40 !important; 
+    overflow-y: hidden !important; /* Lock vertical scroll on dashboard screen */
   }
-  :global(main) {
-    background-color: #F2F2F2 !important;
-    max-width: 1920px !important;
+  
+  /* Expand the main content to fill the screen width up to a limit and center vertically */
+  :global(main) { 
+    background-color: #F2F2F2 !important; 
+    max-width: 1920px !important; 
     margin: 0 auto !important;
-    padding-top: 0.75rem !important;
-    padding-bottom: 1.25rem !important;
-    box-sizing: border-box !important;
-  }
-  /* Hide standard headers */
-  :global(main > :first-child) {
-    display: none !important;
-  }
-  :global(h1) {
-    display: none !important;
+    padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; /* Top: 12px, Bottom: 20px buffer */
   }
 </style>
 
@@ -63,12 +102,12 @@ select
     coalesce(sum(case when deal_stage = 'closedwon' then 1 else 0 end) * 1.0 / nullif(count(case when deal_stage in ('closedwon', 'closedlost') then 1 end), 0), 0) as win_rate
 from postgres.fct_pipeline
 where notes_last_updated_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
     else '1970-01-01'::date
 end
-and notes_last_updated_at <= '2026-06-01'::date
+and notes_last_updated_at <= '2026-06-15'::date
 ```
 
 ```sql kpi_lost_value
@@ -77,12 +116,12 @@ select
 from postgres.fct_pipeline
 where deal_stage = 'closedlost'
   and notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
       else '1970-01-01'::date
   end
-  and notes_last_updated_at <= '2026-06-01'::date
+  and notes_last_updated_at <= '2026-06-15'::date
 ```
 
 ```sql kpi_open_deals
@@ -90,13 +129,6 @@ select
     count(distinct deal_id) as open_deals_count
 from postgres.fct_pipeline
 where deal_stage not in ('closedwon', 'closedlost')
-  and notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
-      else '1970-01-01'::date
-  end
-  and notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_top_client_concentration
@@ -104,22 +136,10 @@ with client_shares as (
     select
         c.name as client_name,
         sum(d.amount) as client_amount,
-        sum(d.amount) * 1.0 / (select nullif(sum(amount), 0) from postgres.fct_pipeline where deal_stage not in ('closedwon', 'closedlost') and notes_last_updated_at >= case
-            when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-            when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-            when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
-            else '1970-01-01'::date
-        end and notes_last_updated_at <= '2026-06-01'::date) as share
+        sum(d.amount) * 1.0 / (select nullif(sum(amount), 0) from postgres.fct_pipeline where deal_stage not in ('closedwon', 'closedlost')) as share
     from postgres.fct_pipeline d
     join postgres.seed_xero_contacts c on d.customer_email = c.email_address
     where d.deal_stage not in ('closedwon', 'closedlost')
-      and d.notes_last_updated_at >= case
-          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
-          else '1970-01-01'::date
-      end
-      and d.notes_last_updated_at <= '2026-06-01'::date
     group by c.name
 )
 select coalesce(max(share), 0) as max_concentration
@@ -137,12 +157,12 @@ with reason_ranks as (
     where deal_stage in ('closedwon', 'closedlost')
       and closed_won_reason is not null
       and notes_last_updated_at >= case
-          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
           else '1970-01-01'::date
       end
-      and notes_last_updated_at <= '2026-06-01'::date
+      and notes_last_updated_at <= '2026-06-15'::date
     group by all
 )
 select
@@ -161,13 +181,6 @@ select
 from postgres.fct_pipeline d
 join postgres.seed_xero_contacts c on d.customer_email = c.email_address
 where d.deal_stage not in ('closedwon', 'closedlost')
-  and d.notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
-      else '1970-01-01'::date
-  end
-  and d.notes_last_updated_at <= '2026-06-01'::date
 group by all
 order by pipeline_value desc
 ```
@@ -182,7 +195,10 @@ order by pipeline_value desc
 
 <div class="flex justify-between items-center mb-1.5 mt-0.5">
   <div class="text-base font-extrabold text-[#264773]">Sales Pipeline Deep-Dive</div>
-  <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded">Data Source: HubSpot CRM</div>
+  <div class="flex flex-col items-end">
+    <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded">{dateRangeText}</div>
+    <div class="text-[8px] text-gray-400 font-medium mt-0.5">Date snapshotted at June 2026</div>
+  </div>
 </div>
 
 <div class="mb-2 flex justify-start">

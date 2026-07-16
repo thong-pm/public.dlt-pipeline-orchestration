@@ -8,6 +8,36 @@ title: "Business Performance Dashboard"
   let activeFilter = 'ytd';
   $: activeFilter = inputs?.time_filter || 'ytd';
 
+  const DASHBOARD_DAY = '2026-06-15';
+
+  function formatDate(date) {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  }
+
+  function getFormattedDateRange(filter, refStr) {
+    const ref = new Date(refStr + 'T00:00:00');
+    const endText = formatDate(ref);
+
+    if (filter === 'mtd') {
+      const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      return `${formatDate(start)} - ${endText}`;
+    }
+    if (filter === 'qtd') {
+      const quarterMonth = Math.floor(ref.getMonth() / 3) * 3;
+      const start = new Date(ref.getFullYear(), quarterMonth, 1);
+      return `${formatDate(start)} - ${endText}`;
+    }
+    if (filter === 'ytd') {
+      const start = new Date(ref.getFullYear(), 0, 1);
+      return `${formatDate(start)} - ${endText}`;
+    }
+    return `All Time - ${endText}`;
+  }
+
+  let dateRangeText = '';
+  $: dateRangeText = getFormattedDateRange(activeFilter, DASHBOARD_DAY);
+
   onMount(() => {
     if (browser) {
       localStorage.setItem('evidence-theme', 'light');
@@ -43,31 +73,24 @@ where d.deal_stage = 'closedwon'
   and i.source_system = 'xero'
   and date_trunc('month', d.notes_last_updated_at::timestamp) = date_trunc('month', i.transaction_date::timestamp)
   and d.notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
       else '1970-01-01'::date
   end
-  and d.notes_last_updated_at <= '2026-06-01'::date
+  and d.notes_last_updated_at <= '2026-06-15'::date
 ```
 
 ```sql pipeline_coverage
 select
     coalesce(sum(d.amount) / nullif(1000000.0 - (select sum(revenue_amount) from postgres.fct_revenue where source_system = 'xero' and transaction_date >= case
-        when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-        when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-        when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+        when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+        when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+        when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
         else '1970-01-01'::date
-    end and transaction_date <= '2026-06-01'::date), 0), 0) as coverage_ratio
+    end and transaction_date <= '2026-06-15'::date), 0), 0) as coverage_ratio
 from postgres.fct_pipeline d
 where d.deal_stage not in ('closedwon', 'closedlost')
-  and d.notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
-      else '1970-01-01'::date
-  end
-  and d.notes_last_updated_at <= '2026-06-01'::date
 ```
 
 
@@ -79,12 +102,12 @@ select
 from postgres.fct_revenue 
 where source_system = 'xero'
   and transaction_date >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
       else '1970-01-01'::date
   end
-  and transaction_date <= '2026-06-01'::date
+  and transaction_date <= '2026-06-15'::date
 ```
 
 ```sql kpi_pipeline
@@ -94,13 +117,6 @@ select
     sum(amount) / 750000.0 as target_progress
 from postgres.fct_pipeline 
 where deal_stage not in ('closedwon', 'closedlost')
-  and notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
-      else '1970-01-01'::date
-  end
-  and notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_projects
@@ -108,24 +124,24 @@ select count(distinct project_id) as total_projects
 from postgres.dim_projects 
 where is_active = true
   and created_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
       else '1970-01-01'::date
   end
-  and created_at <= '2026-06-01'::date
+  and created_at <= '2026-06-15'::date
 ```
 
 ```sql kpi_products
 select count(distinct product_id) as total_products 
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
     else '1970-01-01'::date
 end
-and created_at <= '2026-06-01'::date
+and created_at <= '2026-06-15'::date
 ```
 
 ```sql revenue_bookings_billing
@@ -139,12 +155,12 @@ select
     sum(revenue_amount) as revenue
 from postgres.fct_revenue
 where transaction_date >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
     else '1970-01-01'::date
 end
-and transaction_date <= '2026-06-01'::date
+and transaction_date <= '2026-06-15'::date
 group by date_trunc('month', transaction_date), source_system
 order by month_date, case when source_system = 'xero' then 1 else 2 end
 ```
@@ -163,12 +179,12 @@ select
     sum(amount) as pipeline_value
 from postgres.fct_pipeline
 where notes_last_updated_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
     else '1970-01-01'::date
 end
-and notes_last_updated_at <= '2026-06-01'::date
+and notes_last_updated_at <= '2026-06-15'::date
 group by all
 order by deal_stage asc
 ```
@@ -184,12 +200,12 @@ select
     count(distinct project_id) as project_count
 from postgres.dim_projects
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
     else '1970-01-01'::date
 end
-and created_at <= '2026-06-01'::date
+and created_at <= '2026-06-15'::date
 group by all
 order by project_count desc
 ```
@@ -201,12 +217,12 @@ select
     avg(price) as average_price
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
     else '1970-01-01'::date
 end
-and created_at <= '2026-06-01'::date
+and created_at <= '2026-06-15'::date
 group by all
 order by total_variants desc
 ```
@@ -219,7 +235,10 @@ order by total_variants desc
 
 <div class="flex justify-between items-center mb-1.5 mt-0.5">
   <div class="text-base font-extrabold text-[#264773]">Business Performance Cockpit</div>
-  <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded">Data Source: Google BigQuery</div>
+  <div class="flex flex-col items-end">
+    <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded">{dateRangeText}</div>
+    <div class="text-[8px] text-gray-400 font-medium mt-0.5">Date snapshotted at June 2026</div>
+  </div>
 </div>
 
 <div class="mb-2 flex justify-start">
