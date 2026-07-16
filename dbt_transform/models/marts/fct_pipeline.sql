@@ -18,6 +18,9 @@ select
     d.owner_id,
     d.notes_last_updated_at,
     d.closed_won_reason,
+    d.closed_at,
+    d.probability,
+    d.forecast_amount,
     c.email as customer_email,
     {{ generate_surrogate_key(['c.email']) }} as customer_key
 from deals d

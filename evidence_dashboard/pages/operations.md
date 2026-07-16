@@ -167,71 +167,130 @@ order by average_price desc
   <button on:click={() => goto(addBasePath(`/operations?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all">Operations & Vendors</button>
 </div>
 
-<div class="flex justify-between items-center mb-1.5 mt-0.5">
-  <div class="text-base font-extrabold text-[#264773]">Operations & Product Catalog</div>
-  <div class="flex flex-col items-end">
-    <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded">{dateRangeText}</div>
-    <div class="text-[8px] text-gray-400 font-medium mt-0.5">Date snapshotted at June 2026</div>
+<div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
+  <!-- Left Side: Title & Filter Controls -->
+  <div class="flex flex-col gap-2">
+    <div class="text-base font-extrabold text-[#264773]">Operations & Product Catalog</div>
+    
+    <div class="flex items-center gap-3">
+      {#key activeFilter}
+        <ButtonGroup name="time_filter" defaultValue={activeFilter}>
+          <ButtonGroupItem valueLabel="MTD" value="mtd" default={activeFilter === 'mtd'} />
+          <ButtonGroupItem valueLabel="QTD" value="qtd" default={activeFilter === 'qtd'} />
+          <ButtonGroupItem valueLabel="YTD" value="ytd" default={activeFilter === 'ytd'} />
+          <ButtonGroupItem valueLabel="All Time" value="all" default={activeFilter === 'all'} />
+        </ButtonGroup>
+      {/key}
+      <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2.5 py-1 rounded h-[26px] flex items-center gap-1.5">
+        <span class="text-gray-400">📅</span> {dateRangeText}
+      </div>
+    </div>
+    
+    <div class="text-[8px] text-gray-400 font-semibold bg-white/50 border border-gray-200 px-2 py-0.5 rounded self-start">
+      Date snapshotted at June 2026
+    </div>
   </div>
-</div>
 
-<div class="mb-2 flex justify-start">
-  {#key activeFilter}
-    <ButtonGroup name="time_filter" defaultValue={activeFilter}>
-      <ButtonGroupItem valueLabel="MTD" value="mtd" default={activeFilter === 'mtd'} />
-      <ButtonGroupItem valueLabel="QTD" value="qtd" default={activeFilter === 'qtd'} />
-      <ButtonGroupItem valueLabel="YTD" value="ytd" default={activeFilter === 'ytd'} />
-      <ButtonGroupItem valueLabel="All Time" value="all" default={activeFilter === 'all'} />
-    </ButtonGroup>
-  {/key}
+  <!-- Right Side: Operations Insights Card (Locked height to prevent layout push) -->
+  <div class="flex flex-col items-end self-stretch md:self-auto">
+    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[320px] h-[75px] flex flex-col justify-between overflow-hidden text-[9px]">
+      <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center gap-1">
+        <span>💡</span> Operations Insights
+      </div>
+      <div class="flex flex-col gap-0.5 text-gray-500 leading-tight">
+        {#if kpi_completion_rate[0]?.completion_rate && kpi_completion_rate[0]?.completion_rate < 0.80}
+          <div class="flex items-start gap-1">
+            <span class="text-amber-600 font-bold">✦</span>
+            <span>Completion rate is low (<Value data={kpi_completion_rate} column=completion_rate fmt="pct0" /> vs 80% target)</span>
+          </div>
+        {:else}
+          <div class="flex items-start gap-1">
+            <span class="text-teal-600 font-bold">✦</span>
+            <span>Completion rate is healthy (<Value data={kpi_completion_rate} column=completion_rate fmt="pct0" />)</span>
+          </div>
+        {/if}
+        {#if kpi_total_variants[0]?.total_variants && kpi_total_variants[0]?.total_variants < 10}
+          <div class="flex items-start gap-1">
+            <span class="text-amber-600 font-bold">✦</span>
+            <span>Shopify catalog is small (<Value data={kpi_total_variants} column=total_variants /> variants registered)</span>
+          </div>
+        {:else}
+          <div class="flex items-start gap-1">
+            <span class="text-teal-600 font-bold">✦</span>
+            <span>Shopify catalog is active (<Value data={kpi_total_variants} column=total_variants /> variants)</span>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Row 1: Operations KPIs -->
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 mb-3.5">
   
-  <!-- KPI 1: Active Projects -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <!-- KPI 1: Project Completion Rate -->
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">🏗️ Ongoing Active Projects</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
-        <Value data={kpi_active_projects} column=active_projects />
-      </h2>
-    </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Active builds tracked in Procore</div>
-  </div>
-
-  <!-- KPI 2: Project Completion Rate -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px]">
-    <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">✅ Project Completion Rate</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Project Completion Rate</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1D5F60]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_completion_rate} column=completion_rate fmt="pct1" />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Ratio of completed jobs in date range</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Ratio of completed jobs in date range</div>
+  </a>
+
+  <!-- KPI 2: Active Projects -->
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+    <div>
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Ongoing Active Projects</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#264773]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
+        <Value data={kpi_active_projects} column=active_projects />
+      </h2>
+    </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Active builds tracked in Procore</div>
+  </a>
 
   <!-- KPI 3: Average Variant Catalog Price -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">🛍️ Avg Variant Pricing</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Variant Pricing</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_total_catalog_value} column=avg_price fmt=usd />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Mean price of Shopify variants</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Mean price of Shopify variants</div>
+  </a>
 
   <!-- KPI 4: Total Variants Registered -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">📦 Shopify Variant Count</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Shopify Variant Count</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_total_variants} column=total_variants />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Total unique variants registered</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Total unique variants registered</div>
+  </a>
 
 </div>
 

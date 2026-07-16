@@ -193,71 +193,130 @@ order by pipeline_value desc
   <button on:click={() => goto(addBasePath(`/operations?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Operations & Vendors</button>
 </div>
 
-<div class="flex justify-between items-center mb-1.5 mt-0.5">
-  <div class="text-base font-extrabold text-[#264773]">Sales Pipeline Deep-Dive</div>
-  <div class="flex flex-col items-end">
-    <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded">{dateRangeText}</div>
-    <div class="text-[8px] text-gray-400 font-medium mt-0.5">Date snapshotted at June 2026</div>
+<div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
+  <!-- Left Side: Title & Filter Controls -->
+  <div class="flex flex-col gap-2">
+    <div class="text-base font-extrabold text-[#264773]">Sales Pipeline Deep-Dive</div>
+    
+    <div class="flex items-center gap-3">
+      {#key activeFilter}
+        <ButtonGroup name="time_filter" defaultValue={activeFilter}>
+          <ButtonGroupItem valueLabel="MTD" value="mtd" default={activeFilter === 'mtd'} />
+          <ButtonGroupItem valueLabel="QTD" value="qtd" default={activeFilter === 'qtd'} />
+          <ButtonGroupItem valueLabel="YTD" value="ytd" default={activeFilter === 'ytd'} />
+          <ButtonGroupItem valueLabel="All Time" value="all" default={activeFilter === 'all'} />
+        </ButtonGroup>
+      {/key}
+      <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2.5 py-1 rounded h-[26px] flex items-center gap-1.5">
+        <span class="text-gray-400">📅</span> {dateRangeText}
+      </div>
+    </div>
+    
+    <div class="text-[8px] text-gray-400 font-semibold bg-white/50 border border-gray-200 px-2 py-0.5 rounded self-start">
+      Date snapshotted at June 2026
+    </div>
   </div>
-</div>
 
-<div class="mb-2 flex justify-start">
-  {#key activeFilter}
-    <ButtonGroup name="time_filter" defaultValue={activeFilter}>
-      <ButtonGroupItem valueLabel="MTD" value="mtd" default={activeFilter === 'mtd'} />
-      <ButtonGroupItem valueLabel="QTD" value="qtd" default={activeFilter === 'qtd'} />
-      <ButtonGroupItem valueLabel="YTD" value="ytd" default={activeFilter === 'ytd'} />
-      <ButtonGroupItem valueLabel="All Time" value="all" default={activeFilter === 'all'} />
-    </ButtonGroup>
-  {/key}
+  <!-- Right Side: Sales Insights Card (Locked height to prevent layout push) -->
+  <div class="flex flex-col items-end self-stretch md:self-auto">
+    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[320px] h-[75px] flex flex-col justify-between overflow-hidden text-[9px]">
+      <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center gap-1">
+        <span>💡</span> Sales Insights
+      </div>
+      <div class="flex flex-col gap-0.5 text-gray-500 leading-tight">
+        {#if kpi_win_rate[0]?.win_rate && kpi_win_rate[0]?.win_rate < 0.25}
+          <div class="flex items-start gap-1">
+            <span class="text-amber-600 font-bold">✦</span>
+            <span>Win rate is low (<Value data={kpi_win_rate} column=win_rate fmt="pct0" /> vs 25% target)</span>
+          </div>
+        {:else}
+          <div class="flex items-start gap-1">
+            <span class="text-teal-600 font-bold">✦</span>
+            <span>Win rate is healthy (<Value data={kpi_win_rate} column=win_rate fmt="pct0" />)</span>
+          </div>
+        {/if}
+        {#if kpi_top_client_concentration[0]?.max_concentration && kpi_top_client_concentration[0]?.max_concentration > 0.50}
+          <div class="flex items-start gap-1">
+            <span class="text-amber-600 font-bold">✦</span>
+            <span>High concentration (<Value data={kpi_top_client_concentration} column=max_concentration fmt="pct0" /> of pipeline)</span>
+          </div>
+        {:else}
+          <div class="flex items-start gap-1">
+            <span class="text-teal-600 font-bold">✦</span>
+            <span>Client concentration is balanced</span>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Row 1: Sales KPIs -->
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 mb-3.5">
   
   <!-- KPI 1: Win Rate -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">🎯 Pipeline Win Rate</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Pipeline Win Rate</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1D5F60]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_win_rate} column=win_rate fmt="pct1" />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Closed Won vs. Closed Lost count</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Closed Won vs. Closed Lost count</div>
+  </a>
 
   <!-- KPI 2: Lost Opportunity Value -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-red-500 py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">💸 Lost Opportunity Value</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Lost Opportunity Value</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#264773]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_lost_value} column=lost_value fmt=usd />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Sum of HubSpot deal amounts marked as 'Closed Lost'</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Sum of HubSpot deal amounts marked as 'Closed Lost'</div>
+  </a>
 
   <!-- KPI 3: Open Deals in Funnel -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">💼 Open Deals in Funnel</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Open Deals in Funnel</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_open_deals} column=open_deals_count />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Active prospects in pipeline</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Active prospects in pipeline</div>
+  </a>
 
   <!-- KPI 4: Top Customer Concentration -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px]">
+  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
-      <span style="color: #7B8DA6;" class="text-[9px] font-bold uppercase tracking-wider">⚠️ Max Client Concentration</span>
-      <h2 style="color: #000000;" class="text-xl font-extrabold mt-0.5">
+      <div class="flex justify-between items-center">
+        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Max Client Concentration</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-extrabold mt-0.5 text-gray-800">
         <Value data={kpi_top_client_concentration} column=max_concentration fmt="pct0" />
       </h2>
     </div>
-    <div style="color: #7B8DA6;" class="text-[9px] mt-0.5">Largest client's share of pipeline</div>
-  </div>
+    <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Largest client's share of pipeline</div>
+  </a>
 
 </div>
 

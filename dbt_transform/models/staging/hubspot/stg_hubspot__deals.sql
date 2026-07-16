@@ -8,7 +8,10 @@ with source as (
         'hubspot_owner_id': dbt.type_bigint(),
         'num_notes': dbt.type_int(),
         'notes_last_updated': dbt.type_string(),
-        'closed_won_reason': dbt.type_string()
+        'closed_won_reason': dbt.type_string(),
+        'closedate': dbt.type_string(),
+        'probability': dbt.type_numeric(),
+        'hs_forecast_amount': dbt.type_numeric()
     }) }}
 ),
 
@@ -22,7 +25,10 @@ renamed as (
         hubspot_owner_id as owner_id,
         cast(num_notes as {{ dbt.type_int() }}) as num_notes,
         notes_last_updated as notes_last_updated_at,
-        closed_won_reason
+        closed_won_reason,
+        closedate as closed_at,
+        cast(probability as {{ dbt.type_numeric() }}) as probability,
+        cast(hs_forecast_amount as {{ dbt.type_numeric() }}) as forecast_amount
     from source
 )
 

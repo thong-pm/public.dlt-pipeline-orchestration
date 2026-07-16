@@ -1,0 +1,67 @@
+name: Deploy Dev Preview to GitHub Pages
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'evidence_dashboard/package-lock.json'
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          export_environment_variables: true
+
+      - name: Install Dependencies
+        run: |
+          cd evidence_dashboard
+          npm install
+
+      - name: Configure Dev BigQuery Datasource
+        run: |
+          cat <<EOF > evidence_dashboard/sources/postgres/connection.yaml
+          name: postgres
+          type: bigquery
+          options:
+            project_id: ${{ secrets.GCP_PROJECT_ID }}
+            dataset: dbt_prod
+            authenticator: gcloud-cli
+          EOF
+
+      - name: Build Dashboard Preview
+        run: |
+          echo "" >> evidence_dashboard/evidence.config.yaml
+          echo "deployment:" >> evidence_dashboard/evidence.config.yaml
+          echo "  basePath: /public.dlt-pipeline-orchestration/dev" >> evidence_dashboard/evidence.config.yaml
+          cd evidence_dashboard
+          npm run sources
+          npm run build
+        env:
+          SVELTE_BASE_PATH: public.dlt-pipeline-orchestration/dev
+
+      - name: Create .nojekyll file
+        run: touch evidence_dashboard/build/.nojekyll
+
+      - name: Deploy Preview to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: evidence_dashboard/build
+          branch: gh-pages
+          target-folder: dev
