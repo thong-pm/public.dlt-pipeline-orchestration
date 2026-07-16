@@ -63,11 +63,12 @@ select
     coalesce(sum(case when deal_stage = 'closedwon' then 1 else 0 end) * 1.0 / nullif(count(case when deal_stage in ('closedwon', 'closedlost') then 1 end), 0), 0) as win_rate
 from postgres.fct_pipeline
 where notes_last_updated_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_lost_value
@@ -76,11 +77,12 @@ select
 from postgres.fct_pipeline
 where deal_stage = 'closedlost'
   and notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_open_deals
@@ -89,11 +91,12 @@ select
 from postgres.fct_pipeline
 where deal_stage not in ('closedwon', 'closedlost')
   and notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_top_client_concentration
@@ -102,20 +105,21 @@ with client_shares as (
         c.name as client_name,
         sum(d.amount) as client_amount,
         sum(d.amount) * 1.0 / (select nullif(sum(amount), 0) from postgres.fct_pipeline where deal_stage not in ('closedwon', 'closedlost') and notes_last_updated_at >= case
-            when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-            when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-            when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+            when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+            when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+            when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
             else '1970-01-01'::date
-        end) as share
+        end and notes_last_updated_at <= '2026-06-01'::date) as share
     from postgres.fct_pipeline d
     join postgres.seed_xero_contacts c on d.customer_email = c.email_address
     where d.deal_stage not in ('closedwon', 'closedlost')
       and d.notes_last_updated_at >= case
-          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
           else '1970-01-01'::date
       end
+      and d.notes_last_updated_at <= '2026-06-01'::date
     group by c.name
 )
 select coalesce(max(share), 0) as max_concentration
@@ -133,11 +137,12 @@ with reason_ranks as (
     where deal_stage in ('closedwon', 'closedlost')
       and closed_won_reason is not null
       and notes_last_updated_at >= case
-          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+          when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+          when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+          when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
           else '1970-01-01'::date
       end
+      and notes_last_updated_at <= '2026-06-01'::date
     group by all
 )
 select
@@ -157,11 +162,12 @@ from postgres.fct_pipeline d
 join postgres.seed_xero_contacts c on d.customer_email = c.email_address
 where d.deal_stage not in ('closedwon', 'closedlost')
   and d.notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and d.notes_last_updated_at <= '2026-06-01'::date
 group by all
 order by pipeline_value desc
 ```

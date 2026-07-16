@@ -63,11 +63,12 @@ select count(distinct project_id) as active_projects
 from postgres.dim_projects
 where is_active = true
   and created_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and created_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_completion_rate
@@ -75,33 +76,36 @@ select
     coalesce(count(case when is_active = false then 1 end) * 1.0 / nullif(count(*), 0), 0) as completion_rate
 from postgres.dim_projects
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_total_catalog_value
 select avg(price) as avg_price
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_total_variants
 select count(*) as total_variants
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 ```
 
 ```sql detailed_projects
@@ -112,11 +116,12 @@ select
     case when is_active = true then '🟢 Active' else '⚪ Completed' end as status
 from postgres.dim_projects
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 order by status asc, project_name asc
 ```
 
@@ -126,11 +131,12 @@ select
     avg(price) as average_price
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 group by all
 order by average_price desc
 ```

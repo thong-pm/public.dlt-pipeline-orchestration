@@ -43,29 +43,31 @@ where d.deal_stage = 'closedwon'
   and i.source_system = 'xero'
   and date_trunc('month', d.notes_last_updated_at::timestamp) = date_trunc('month', i.transaction_date::timestamp)
   and d.notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and d.notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql pipeline_coverage
 select
     coalesce(sum(d.amount) / nullif(1000000.0 - (select sum(revenue_amount) from postgres.fct_revenue where source_system = 'xero' and transaction_date >= case
-        when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-        when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-        when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+        when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+        when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+        when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
         else '1970-01-01'::date
-    end), 0), 0) as coverage_ratio
+    end and transaction_date <= '2026-06-01'::date), 0), 0) as coverage_ratio
 from postgres.fct_pipeline d
 where d.deal_stage not in ('closedwon', 'closedlost')
   and d.notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and d.notes_last_updated_at <= '2026-06-01'::date
 ```
 
 
@@ -77,11 +79,12 @@ select
 from postgres.fct_revenue 
 where source_system = 'xero'
   and transaction_date >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and transaction_date <= '2026-06-01'::date
 ```
 
 ```sql kpi_pipeline
@@ -92,11 +95,12 @@ select
 from postgres.fct_pipeline 
 where deal_stage not in ('closedwon', 'closedlost')
   and notes_last_updated_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and notes_last_updated_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_projects
@@ -104,22 +108,24 @@ select count(distinct project_id) as total_projects
 from postgres.dim_projects 
 where is_active = true
   and created_at >= case
-      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+      when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+      when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
       else '1970-01-01'::date
   end
+  and created_at <= '2026-06-01'::date
 ```
 
 ```sql kpi_products
 select count(distinct product_id) as total_products 
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 ```
 
 ```sql revenue_bookings_billing
@@ -133,11 +139,12 @@ select
     sum(revenue_amount) as revenue
 from postgres.fct_revenue
 where transaction_date >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and transaction_date <= '2026-06-01'::date
 group by date_trunc('month', transaction_date), source_system
 order by month_date, case when source_system = 'xero' then 1 else 2 end
 ```
@@ -156,11 +163,12 @@ select
     sum(amount) as pipeline_value
 from postgres.fct_pipeline
 where notes_last_updated_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and notes_last_updated_at <= '2026-06-01'::date
 group by all
 order by deal_stage asc
 ```
@@ -176,11 +184,12 @@ select
     count(distinct project_id) as project_count
 from postgres.dim_projects
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 group by all
 order by project_count desc
 ```
@@ -192,11 +201,12 @@ select
     avg(price) as average_price
 from postgres.dim_products
 where created_at >= case
-    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', (select max(transaction_date) from postgres.fct_revenue))
-    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', (select max(transaction_date) from postgres.fct_revenue))
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-01'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-01'::date)
     else '1970-01-01'::date
 end
+and created_at <= '2026-06-01'::date
 group by all
 order by total_variants desc
 ```
