@@ -1,6 +1,6 @@
-# Multi-Source SaaS Serverless ELT Pipeline: BigQuery, dlt, & dbt Core
+# Multi-Source SaaS Serverless ELT Pipeline & BI Dashboard: BigQuery, dlt, dbt Core & Evidence
 
-A production-ready, parallel ingestion and transformation pipeline for HubSpot, Xero, Shopify, and Procore data using dlt and dbt Core.
+A production-ready, parallel ingestion, transformation, and BI dashboard pipeline for HubSpot, Xero, Shopify, and Procore data.
 
 ![DLT Pipeline Architecture](dtl-pipeline-multi-saas.png)
 
@@ -32,6 +32,7 @@ A cost-effective serverless ELT/ETL solution using dlt and dbt Core to centraliz
 │   └── secrets.toml     # Sensitive credentials (API keys, rotated tokens)
 ├── dbt_transform/       # dbt models for SQL staging, intermediate, and marts layers
 ├── docs/                # Developer manual and notes
+├── evidence_dashboard/  # Evidence.dev BI dashboard Svelte/Markdown pages and SQL queries
 ├── runners/             # Python execution scripts
 │   └── run_all.py       # Orchestrates all active pipelines in parallel
 ├── scripts/             # Utility scripts for local running and GCP deployments
@@ -82,6 +83,20 @@ To run/test the production pipeline manually:
 ```bash
 bash scripts/run_prod.sh
 ```
+
+### 4. BI Dashboard (Evidence.dev)
+
+To run the interactive BI dashboard locally:
+```bash
+cd evidence_dashboard
+npm install
+npm run dev
+```
+The dashboard compiles Svelte/Markdown pages and queries the local Postgres instance, launching at `http://localhost:3000`.
+
+**Staging & Production Deployments**:
+* **Dev/Staging Previews**: Pushing to the `dev` branch triggers the GitHub Action `deploy-preview.yml`, building and hosting a preview at `https://<org>.github.io/<repo>/dev/` against production BigQuery.
+* **Production Deployment**: Pushing/merging to `main` triggers the GitHub Action `deploy-dashboard.yml`, deploying the production-ready dashboard to GitHub Pages.
 
 ---
 

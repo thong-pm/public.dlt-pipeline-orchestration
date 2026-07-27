@@ -63,6 +63,18 @@ title: "Operations & Catalog Analytics"
 </script>
 
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap');
+
+  :global(:root) {
+    --bg-color: #05070b;
+    --surface-color: #ffffff; /* Reverted to white */
+    --text-color: #2d3748; /* Reverted to dark */
+    --text-secondary: #718096; /* Reverted to gray */
+    --primary-color: #0d9488;
+    --accent-color: #fbbf24;
+    --border-color: #e2e8f0; /* Reverted to light border */
+  }
+
   /* Hide the top navigation bar (which contains the Evidence logo) */
   :global(header) { display: none !important; }
   
@@ -81,17 +93,47 @@ title: "Operations & Catalog Analytics"
   
   /* Set global background and text colors */
   :global(body) { 
-    background-color: #F2F2F2 !important; 
-    color: #383D40 !important; 
+    background-color: #05070b !important; 
     overflow-y: hidden !important; /* Lock vertical scroll on dashboard screen */
   }
   
   /* Expand the main content to fill the screen width up to a limit and center vertically */
   :global(main) { 
-    background-color: #F2F2F2 !important; 
-    max-width: 1920px !important; 
+    background-color: #05070b !important; 
+    max-width: 1280px !important; /* Virtual Width Target */
     margin: 0 auto !important;
     padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; /* Top: 12px, Bottom: 20px buffer */
+  }
+
+  /* Title text color override so it is readable on deep background */
+  :global(.text-\[\#264773\]) {
+    color: #0d9488 !important;
+  }
+
+  /* Active Tab button styling matching teal accent */
+  :global(button.bg-\[\#264773\]) {
+    background-color: #0d9488 !important;
+    color: #ffffff !important;
+  }
+
+  /* Ensure snapshot label text on dark background is readable */
+  :global(.text-\[8px\]) {
+    color: #94a3b8 !important;
+  }
+
+  /* Apply Outfit font to headings, big metrics, and buttons */
+  :global(h1), :global(h2), :global(h3), :global(h4), :global(h5), :global(h6), :global(button) {
+    font-family: 'Outfit', sans-serif !important;
+  }
+
+  /* Apply Inter font to body elements, tables, values, and paragraphs */
+  :global(body), :global(main), :global(div), :global(span), :global(p), :global(td), :global(th) {
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  /* Apply monospace font for code snippets */
+  :global(code), :global(pre) {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace !important;
   }
 </style>
 
@@ -233,7 +275,7 @@ order by average_price desc
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Project Completion Rate</span>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#1D5F60]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#1D5F60]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
@@ -249,7 +291,7 @@ order by average_price desc
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Ongoing Active Projects</span>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#264773]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#264773]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
         </svg>
       </div>
@@ -265,7 +307,7 @@ order by average_price desc
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Variant Pricing</span>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
@@ -281,7 +323,7 @@ order by average_price desc
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Shopify Variant Count</span>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#7B8DA6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       </div>
