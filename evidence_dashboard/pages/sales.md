@@ -116,9 +116,9 @@ title: "Sales & Win-Loss Analysis"
     color: #ffffff !important;
   }
 
-  /* Ensure snapshot label text on dark background is readable */
-  :global(.text-\[8px\]) {
-    color: #94a3b8 !important;
+  /* Thin white border outline for all cards */
+  :global(.bg-white) {
+    outline: 1px solid rgba(255, 255, 255, 0.35) !important;
   }
 
   /* Apply Outfit font to headings, big metrics, and buttons */
@@ -254,7 +254,7 @@ order by pipeline_value desc
       </div>
     </div>
     
-    <div class="text-[8px] text-gray-400 font-semibold bg-white/50 border border-gray-200 px-2 py-0.5 rounded self-start">
+    <div style="color: #ffffff;" class="text-[8px] font-semibold bg-white/10 border border-white/20 px-2 py-0.5 rounded self-start">
       Date snapshotted at June 2026
     </div>
   </div>
@@ -385,8 +385,10 @@ order by pipeline_value desc
         colorPalette={['#1D5F60', '#7B8DA6']}
         seriesOrder={['Closed Won', 'Closed Lost']}
         height={175}
+        legend=true
         echartsOptions={{
-            grid: { top: 15, bottom: 25, left: 40, right: 40 },
+            grid: { top: 38, bottom: 20, left: 40, right: 40 },
+            legend: { top: 0, itemGap: 15 },
             xAxis: {
                 splitNumber: 3,
                 axisLabel: {
