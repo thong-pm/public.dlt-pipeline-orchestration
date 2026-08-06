@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Executive Cockpit Redirect</title>
+    <script type="text/javascript">
+      // GitHub Pages SPA redirect fallback script
+      (function() {
+        var path = window.location.pathname;
+        var search = window.location.search;
+        var hash = window.location.hash;
+        
+        // Append trailing slash to folder routes if missing
+        if (path && !path.endsWith('/') && !path.includes('.')) {
+          path = path + '/';
+        }
+        window.location.replace(path + search + hash);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
