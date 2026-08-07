@@ -1,50 +1,49 @@
-# Multi-Source SaaS Serverless ELT Pipeline & BI Dashboard: BigQuery, dlt, dbt Core & Evidence
+# Multi-Source SaaS Serverless ELT Pipeline & BI Dashboard
 
-A production-ready, parallel ingestion, transformation, and BI dashboard pipeline for HubSpot, Xero, Shopify, and Procore data.
+A production-ready, parallel ingestion, transformation, and BI dashboard pipeline for **HubSpot**, **Xero**, **Shopify**, and **Procore** data powered by `dlt`, `dbt Core`, and `Evidence.dev`.
 
 ![DLT Pipeline Architecture](dtl-pipeline-multi-saas.png)
 
-### Built for Agencies (BI Analytics, CRM or Marketing)
+---
 
-A cost-effective serverless ELT/ETL solution using dlt and dbt Core to centralize data from HubSpot, Xero, Shopify, and Procore into Google BigQuery or PostgreSQL, eliminating expensive monthly third-party connector fees.
+## 🚀 Overview
 
-*This system runs automated, low-maintenance pipelines with built-in Slack and Email alerting. Need this deployed, customized, or connected to other APIs? [Let's discuss your project on Upwork](https://www.upwork.com/freelancers/~01ff16ed25bc2d9375).*
-
-
+A cost-effective serverless ELT solution that centralizes client data from SaaS APIs into **Google BigQuery** (Production) or **PostgreSQL** (Local Development), eliminating expensive monthly third-party connector subscriptions (e.g. Fivetran, Stitch).
 
 ### Core Capabilities
-* **Saves on Software Fees**: Uses the open-source `dlt` engine to ingest client data, eliminating expensive third-party connector subscriptions.
-* **Low-Maintenance Automation**: Scheduled pipeline runs automatically monitor status and report ingestion/dbt metrics via Email and Slack.
-* **Highly Customizable**: Easily toggle active sources, add custom API connectors, and configure custom dbt transformation models based on each client's specific business needs.
-* **Parallel ELT Ingestion**: Concurrently loads data from HubSpot, Xero, Shopify, and Procore via `dlt` with schema evolution support.
-* **OAuth Token Self-Rotation**: Automatically refreshes and persists Xero and Procore OAuth tokens to local secrets or GCP Secret Manager.
-* **Preflight Connection Resilience**: Validates credentials before running, gracefully skipping failing sources to keep other ingestions online.
+* **Zero Third-Party Fees**: Uses open-source `dlt` for schema evolution and parallel API ingestion.
 * **In-Database SQL Transformations**: Orchestrates post-load `dbt Core` builds to clean raw data and populate downstream reporting marts.
-* **Slack & Email Observability**: Extracts ingestion metrics and dbt results to send Slack summaries and critical failure alerts.
-* **GCP Serverless Architecture**: Packaged as a Docker container executed on Cloud Run Jobs, triggered daily by Cloud Scheduler, and targeted to BigQuery.
+* **Embedded BI Dashboard**: Includes `Evidence.dev` markdown-based analytical cockpit with zero-latency custom slicers and dynamic cross-filtering.
+* **OAuth 2.0 Self-Rotation**: Automatically refreshes and persists Xero and Procore OAuth tokens to `.dlt/secrets.toml` and GCS Token Vault.
+* **Preflight Connection Resilience**: Validates credentials before running, gracefully skipping failing sources to keep other ingestions online.
+* **Slack & Email Observability**: Automated notifications with row counts, dbt test results, and critical failure alerts.
+* **GCP Serverless Deployment**: Containerized with Docker on GCP Cloud Run Jobs, triggered on-demand or via Cloud Scheduler.
 
-## Project Structure
+---
+
+## 📁 Repository Structure
 
 ```text
 .
 ├── .dlt/
-│   ├── config.toml      # Master Control Panel (environments, resources, toggles)
-│   └── secrets.toml     # Sensitive credentials (API keys, rotated tokens)
-├── dbt_transform/       # dbt models for SQL staging, intermediate, and marts layers
-├── docs/                # Developer manual and notes
-├── evidence_dashboard/  # Evidence.dev BI dashboard Svelte/Markdown pages and SQL queries
-├── runners/             # Python execution scripts
-│   └── run_all.py       # Orchestrates all active pipelines in parallel
-├── scripts/             # Utility scripts for local running and GCP deployments
-├── sources/             # API extraction logic
-└── utils/               # Core pipeline helpers
+│   ├── config.toml      # Master Control Panel (pipeline toggles, active resources)
+│   └── secrets.toml     # Sensitive credentials & OAuth tokens (git-ignored)
+├── dbt_transform/       # dbt models for staging, intermediate, and marts layers
+├── evidence_dashboard/  # Evidence.dev BI dashboard (pages, components, queries)
+├── runners/             # Python execution orchestrators (parallel run_all.py)
+├── scripts/             # Unified CLI (pipeline.sh) & OAuth helper scripts
+├── sources/             # dlt source extractors (HubSpot, Xero, Shopify, Procore)
+├── utils/               # Secret manager, logger, retry handler, Slack notifier
+├── Dockerfile           # Production container specification for GCP Cloud Run
+└── README.md            # Master repository documentation
 ```
 
-## Execution
+---
 
-### 1. Setup
+## 🛠️ Quick Start & Usage
 
-**Initialize the Environment**:
+### 1. Environment Setup
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -53,84 +52,99 @@ poetry install
 cp .dlt/secrets.toml.example .dlt/secrets.toml
 ```
 
-### 2. Local Development (PostgreSQL)
+### 2. Unified Pipeline CLI (`scripts/pipeline.sh`)
 
-To run the pipeline and build your dbt models locally against a local Postgres database:
+All local and cloud operations are managed through the single `scripts/pipeline.sh` CLI:
 
 ```bash
-bash scripts/run_dev.sh
+# Full Local Pipeline (Extract APIs -> Local Postgres -> Run & Test dbt)
+bash scripts/pipeline.sh dev
+
+# Fast dbt Model Iteration (No slow API extraction, runs dbt in ~2s)
+bash scripts/pipeline.sh dbt dev                            # All models against Local Postgres
+bash scripts/pipeline.sh dbt dev --select fct_executive_cockpit  # Specific model
+bash scripts/pipeline.sh dbt prod                           # Validate directly against BigQuery
+
+# Launch Evidence Dashboard
+bash scripts/pipeline.sh dashboard dev                      # Connected to Local Postgres
+bash scripts/pipeline.sh dashboard prod                     # Connected to BigQuery
+
+# Production Cloud Management (GCP)
+bash scripts/pipeline.sh auth                               # Interactive OAuth re-authorization & GCS sync
+bash scripts/pipeline.sh deploy                             # Build Docker image & update Cloud Run Job
+bash scripts/pipeline.sh prod                               # Trigger Cloud Run Job execution on GCP
 ```
-*Note: This script automatically sets `PIPELINE__DESTINATION="postgres"` and runs both the DLT pipeline ingestion and the dbt transformations/tests.*
-
-### 3. Production Deployment (GCP Cloud Run & BigQuery)
-
-Production runs execute on GCP Cloud Run Jobs and write directly to BigQuery. There is **no need** to manually edit `.dlt/config.toml` before deploying; the GCP environment is configured to override the destination to `bigquery` automatically.
-
-GCP Services Used:
-* Cloud Run Jobs: Runs the pipeline execution container.
-* BigQuery: Stores raw loaded tables and dbt transformed reporting tables.
-* Secret Manager: Stores credentials and rotated OAuth tokens in secrets.toml.
-* Cloud Scheduler: Triggers the daily execution run.
-* Artifact Registry: Stores built Docker container images.
-* Cloud Build: Compiles and pushes container images from the repository.
-
-To deploy code updates (pipeline Python changes) to production:
-```bash
-bash scripts/rebuild_and_deploy.sh
-```
-
-To run/test the production pipeline manually:
-```bash
-bash scripts/run_prod.sh
-```
-
-### 4. BI Dashboard (Evidence.dev)
-
-To run the interactive BI dashboard locally:
-```bash
-cd evidence_dashboard
-npm install
-npm run dev
-```
-The dashboard compiles Svelte/Markdown pages and queries the local Postgres instance, launching at `http://localhost:3000`.
-
-**Staging & Production Deployments**:
-* **Dev/Staging Previews**: Pushing to the `dev` branch triggers the GitHub Action `deploy-preview.yml`, building and hosting a preview at `https://<org>.github.io/<repo>/dev/` against production BigQuery.
-* **Production Deployment**: Pushing/merging to `main` triggers the GitHub Action `deploy-dashboard.yml`, deploying the production-ready dashboard to GitHub Pages.
 
 ---
 
-## Token Re-authorization & Sync (GCP)
+## 📊 Data Transformation Layer (`dbt Core`)
 
-If a token expires or fails (e.g., Xero or Procore), do **NOT** run the full rebuild script. Simply run the interactive auth fixer:
-```bash
-python scripts/fix_auth.py
+Raw schemas extracted by `dlt` are transformed inside your data warehouse following dbt best practices:
+
+```text
+dlt (Extract + Load)
+  └── Raw Schemas (hubspot, xero, shopify, procore)
+        └── Staging Views (stg_*)      → Clean column names, cast types
+              └── Intermediate Views (int_*) → Deduplicate, union sources
+                    └── Mart Tables (fct_*, dim_*) → Analytical reporting tables
 ```
-This script will automatically:
-1. Pull the active remote tokens from GCP GCS.
-2. Prompt you to authorize the failed SaaS.
-3. Open your browser to complete the OAuth flow.
-4. Immediately upload the updated secrets back to GCP (without rebuilding the pipeline).
+
+### Marts & Dimension Model Inventory
+
+| Layer | Model | Description |
+| :--- | :--- | :--- |
+| **Staging** | `stg_hubspot__contacts` | HubSpot contacts & properties |
+| **Staging** | `stg_hubspot__companies` | HubSpot company records & lifecycle stages |
+| **Staging** | `stg_hubspot__deals` | HubSpot pipeline deals & monetary amounts |
+| **Staging** | `stg_procore__projects` | Procore project directory |
+| **Staging** | `stg_procore__companies` | Procore corporate accounts |
+| **Staging** | `stg_procore__users` | Procore user directory |
+| **Staging** | `stg_shopify__products` | Shopify product catalog |
+| **Staging** | `stg_shopify__variants` | Shopify product variants & inventory pricing |
+| **Staging** | `stg_xero__invoices` | Xero financial invoices & billing status |
+| **Staging** | `stg_xero__line_items` | Xero invoice line items |
+| **Staging** | `stg_xero__contacts` | Xero billing contacts |
+| **Intermediate** | `int_all_revenue` | Unified revenue stream (HubSpot deals + Xero invoices) |
+| **Intermediate** | `int_contacts_deduped` | Master golden contact record across CRM & ERP |
+| **Marts** | `fct_executive_cockpit` | Consolidated executive cockpit mart for BI dashboard |
+| **Marts** | `fct_pipeline` | CRM deal pipeline metrics with portable ANSI typecasting |
+| **Marts** | `fct_revenue` | Fact revenue table with calendar period granularity |
+| **Marts** | `dim_customers` | Customer dimension with surrogate key hashing |
+| **Marts** | `dim_products` | Product dimension across Shopify catalog |
+| **Marts** | `dim_projects` | Project dimension across Procore accounts |
 
 ---
 
-## Source Authorization Setup
+## 📈 BI Dashboard (`Evidence.dev`)
 
-Each source requires a one-time setup to authorize the connection.
+The BI dashboard is built with Evidence.dev and deployed automatically to GitHub Pages.
+
+* **Environment Authentication**: Evidence authenticates via environment variables (`PGPASSWORD` for Postgres, Application Default Credentials for BigQuery).
+* **Production CI/CD**:
+  * Push to `dev` branch → Deploys preview dashboard to GitHub Pages (`/dev/overview`).
+  * Merge to `main` branch → Deploys production dashboard to GitHub Pages (`/overview`).
+
+---
+
+## 🔑 Source API Authorization Setup
+
+Each source requires initial configuration in `.dlt/secrets.toml`:
 
 ### HubSpot
-* Create a Private App in HubSpot and copy the Access Token.
-* Add to `[sources.hubspot]` in `.dlt/secrets.toml`.
+1. Create a Private App in HubSpot and copy the Access Token.
+2. Set `api_key` under `[sources.hubspot]` in `.dlt/secrets.toml`.
 
 ### Xero
-* Create an app at developers.xero.com.
-* Set the Redirect URI to `http://localhost:8080/callback`.
-* Run `python scripts/fix_auth.py` (select Xero) once to perform the OAuth handshake.
-* The pipeline handles token rotation automatically thereafter.
+1. Register an application at [developers.xero.com](https://developers.xero.com).
+2. Set Redirect URI to `http://localhost:8080/callback`.
+3. Run `bash scripts/pipeline.sh auth` (select Xero) once to authorize. Token rotation is fully automatic thereafter.
 
 ### Procore
-* Create an app at developers.procore.com.
-* Set the Redirect URI to `http://localhost:8080/callback`.
-* Install the app in your Procore Company Admin under App Management.
-* Run `python scripts/fix_auth.py` (select Procore) once.
-* Tokens are persisted and rotated automatically in `.dlt/secrets.toml`.
+1. Register an application at [developers.procore.com](https://developers.procore.com).
+2. Set Redirect URI to `http://localhost:8080/callback`.
+3. Install the app in Procore Company Admin.
+4. Run `bash scripts/pipeline.sh auth` (select Procore) once to complete OAuth handshake.
+
+### Shopify
+1. Create a Custom App in Shopify Admin under App Development.
+2. Copy Admin API Access Token and Store URL into `[sources.shopify]` in `.dlt/secrets.toml`.

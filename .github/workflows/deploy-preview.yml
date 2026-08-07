@@ -36,27 +36,14 @@ jobs:
           cd evidence_dashboard
           npm install
 
-      - name: Configure Dev BigQuery Datasource
-        run: |
-          cat <<EOF > evidence_dashboard/sources/postgres/connection.yaml
-          name: postgres
-          type: bigquery
-          options:
-            project_id: ${{ secrets.GCP_PROJECT_ID }}
-            dataset: dbt_prod
-            authenticator: gcloud-cli
-          EOF
-
       - name: Build Dashboard Preview
         run: |
-          echo "" >> evidence_dashboard/evidence.config.yaml
-          echo "deployment:" >> evidence_dashboard/evidence.config.yaml
-          echo "  basePath: /public.dlt-pipeline-orchestration/dev" >> evidence_dashboard/evidence.config.yaml
+          mkdir -p evidence_dashboard/sources/analytics
+          printf "name: analytics\ntype: bigquery\noptions:\n  authenticator: gcloud-cli\n  project_id: gcp-etl-497002\n  dataset: dbt_prod\n" > evidence_dashboard/sources/analytics/connection.yaml
           cd evidence_dashboard
+          printf "\ndeployment:\n  basePath: /${{ github.event.repository.name }}/dev\n" >> evidence.config.yaml
           npm run sources
           npm run build
-        env:
-          SVELTE_BASE_PATH: public.dlt-pipeline-orchestration/dev
 
       - name: Create .nojekyll file
         run: touch evidence_dashboard/build/.nojekyll

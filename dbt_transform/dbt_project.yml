@@ -20,4 +20,4 @@ models:
       +materialized: table
 
 vars:
-  use_demo_data: true
+  use_demo_data: false

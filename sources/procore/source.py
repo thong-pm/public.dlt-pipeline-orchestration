@@ -77,6 +77,13 @@ class ProcoreTokenManager:
         with open('.dlt/secrets.toml', 'w') as f:
             tomlkit.dump(secrets, f)
 
+        # Real-time sync: immediately push new refresh token to GCS Token Vault
+        try:
+            from utils.secret_manager import upload_secrets
+            upload_secrets()
+        except Exception as e:
+            print(f"[Procore Token] Notice: Cloud Vault sync skipped ({e})")
+
 
     def list_companies(self):
         headers = {"Authorization": f"Bearer {self.get_access_token()}"}

@@ -27,33 +27,41 @@ def get_secret_client_and_name():
         return None, None
 
 
-def download_secrets() -> bool:
-    bucket_name = os.environ.get("GCS_TOKEN_BUCKET")
+def get_bucket_name():
+    bucket = os.environ.get("GCS_TOKEN_BUCKET")
+    if bucket:
+        return bucket
     local_path = ".dlt/secrets.toml"
-    local_exists = os.path.exists(local_path)
-    is_cloud_run = "K_JOB" in os.environ or "K_SERVICE" in os.environ
-    force_download = os.environ.get("FORCE_DOWNLOAD_SECRETS", "").lower() in ("true", "1", "yes")
+    if os.path.exists(local_path):
+        try:
+            import tomlkit
+            with open(local_path, "r", encoding="utf-8") as f:
+                secrets = tomlkit.load(f)
+            return secrets.get("gcp", {}).get("token_bucket")
+        except Exception:
+            pass
+    return None
 
-    # If running locally and secrets.toml exists, don't overwrite it unless forced
-    if local_exists and not is_cloud_run and not force_download:
-        print("[Secret Manager] Running locally and .dlt/secrets.toml already exists. Skipping download to protect local tokens.")
-        return False
+
+def download_secrets() -> bool:
+    bucket_name = get_bucket_name()
+    local_path = ".dlt/secrets.toml"
 
     # 1. Try downloading from GCS Token Vault (primary source of truth for secrets.toml in production)
     if storage and bucket_name:
         try:
-            print(f"[GCS Vault] Downloading secrets.toml from bucket {bucket_name}...")
+            print(f"[GCS Vault] Syncing secrets.toml from bucket {bucket_name}...")
             client = storage.Client()
             bucket = client.bucket(bucket_name)
             blob = bucket.blob("secrets.toml")
             if blob.exists():
                 os.makedirs(".dlt", exist_ok=True)
                 blob.download_to_filename(local_path)
-                print("[GCS Vault] Successfully downloaded secrets.toml from GCS.")
+                print("[GCS Vault] Successfully synchronized latest secrets from GCS.")
                 return True
             print("[GCS Vault] secrets.toml not found in GCS. Falling back to Secret Manager.")
         except Exception as e:
-            print(f"[GCS Vault] Error downloading secrets.toml from GCS: {e}. Falling back to Secret Manager.")
+            print(f"[GCS Vault] Notice: Could not download secrets from GCS ({e}). Using local secrets.")
 
     # 2. Fallback to GCP Secret Manager
     client, name = get_secret_client_and_name()
@@ -80,7 +88,7 @@ def download_secrets() -> bool:
 
 
 def upload_secrets() -> bool:
-    bucket_name = os.environ.get("GCS_TOKEN_BUCKET")
+    bucket_name = get_bucket_name()
     local_path = ".dlt/secrets.toml"
 
     if not os.path.exists(local_path):

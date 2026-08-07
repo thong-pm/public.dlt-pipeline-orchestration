@@ -36,10 +36,14 @@ def merge_credentials_table(local_tab, gcs_tab, path=""):
 
     # Otherwise, iterate and recurse
     for k, v in gcs_tab.items():
+        full_key = f"{path}.{k}" if path else k
         if k not in local_tab:
+            print(f"[Smart Merge] Added remote key '{full_key}' to local secrets.")
             local_tab[k] = v
         elif isinstance(v, dict) and isinstance(local_tab[k], dict):
-            merge_credentials_table(local_tab[k], v, f"{path}.{k}" if path else k)
+            merge_credentials_table(local_tab[k], v, full_key)
+        else:
+            print(f"[Smart Merge] Preserving local value for static key '{full_key}'.")
 
 def main():
     parser = argparse.ArgumentParser(description="Merge and Deploy secrets.toml to GCS")

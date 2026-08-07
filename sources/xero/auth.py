@@ -36,6 +36,28 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Authorization failed.")
             threading.Thread(target=self.server.shutdown).start()
 
+def open_browser(url: str):
+    import shutil
+    import subprocess
+    import os
+    if shutil.which("wslview"):
+        try:
+            subprocess.Popen(["wslview", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+        except Exception:
+            pass
+    cmd_exe = shutil.which("cmd.exe") or "/mnt/c/Windows/system32/cmd.exe"
+    if os.path.exists(cmd_exe):
+        try:
+            subprocess.Popen([cmd_exe, "/c", "start", "", url.replace("&", "^&")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+        except Exception:
+            pass
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+
 def run_server():
     server = HTTPServer(('localhost', 8080), OAuthCallbackHandler)
     server.serve_forever()
@@ -49,9 +71,13 @@ auth_url = (
     f"&scope={urllib.parse.quote(scopes)}"
 )
 
-print(f"\n1. Opening browser for Xero authorization...")
-print(f"URL: {auth_url}\n")
-webbrowser.open(auth_url)
+print("\n=======================================================")
+print(" 👉 Opening browser for Xero authorization...")
+print(" If the browser does not open automatically, copy/paste this URL:")
+print(f"\n {auth_url}\n")
+print("=======================================================")
+open_browser(auth_url)
+print("Waiting for callback on http://localhost:8080/callback ...")
 
 # 2. Wait for callback
 server_thread = threading.Thread(target=run_server)

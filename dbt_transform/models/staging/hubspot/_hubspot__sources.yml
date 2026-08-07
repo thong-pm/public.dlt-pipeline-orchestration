@@ -13,3 +13,5 @@ sources:
         description: "HubSpot deal pipeline records."
       - name: owners
         description: "HubSpot deal owners."
+      - name: contacts__deals
+        description: "HubSpot contact to deal associations."

@@ -4,10 +4,6 @@ title: "Operations & Catalog Analytics"
 
 <script>
   import { goto } from '$app/navigation';
-
-  let activeFilter = 'ytd';
-  $: activeFilter = inputs?.time_filter || 'ytd';
-
   const DASHBOARD_DAY = '2026-06-15';
 
   function formatDate(date) {
@@ -35,31 +31,26 @@ title: "Operations & Catalog Analytics"
     return `All Time - ${endText}`;
   }
 
-  let dateRangeText = '';
+  let activeFilter = 'ytd';
+  $: activeFilter = inputs?.time_filter || 'ytd';
   $: dateRangeText = getFormattedDateRange(activeFilter, DASHBOARD_DAY);
+
+  function buildNavUrl(path) {
+    if (!browser) return path;
+    const cleanPath = path.endsWith('/') ? path : path + '/';
+    const params = new URLSearchParams(window.location.search);
+    const searchStr = params.toString().replace(/%2C/g, ',');
+    const query = searchStr ? `?${searchStr}` : '';
+    const basePath = typeof addBasePath === 'function' ? addBasePath(cleanPath) : cleanPath;
+    return basePath + query;
+  }
 
   onMount(() => {
     if (browser) {
       localStorage.setItem('evidence-theme', 'light');
       document.documentElement.setAttribute('data-theme', 'light');
-      if (inputs) {
-        const param = $page.url.searchParams.get('time_filter');
-        inputs.time_filter = param || 'ytd';
-      }
     }
   });
-
-  $: if (browser && inputs && inputs.time_filter) {
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.get('time_filter') !== inputs.time_filter) {
-        url.searchParams.set('time_filter', inputs.time_filter);
-        window.history.replaceState(null, '', url.pathname + url.search);
-      }
-    } catch (e) {
-      // Safely ignore SSR initialization errors
-    }
-  }
 </script>
 
 <style>
@@ -135,20 +126,69 @@ title: "Operations & Catalog Analytics"
   :global(code), :global(pre) {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace !important;
   }
+
+  /* Style Dropdown slicer controls to ALWAYS have solid WHITE background, fixed width & text truncation */
+  :global(div.dropdown-container),
+  :global(.evidence-dropdown),
+  :global(div[class*="dropdown"]),
+  :global(button[role="combobox"]),
+  :global(.relative > button),
+  :global(select) {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #2d3748 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    height: 26px !important;
+    width: 210px !important;
+    min-width: 190px !important;
+    max-width: 260px !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 0.5rem !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    cursor: pointer !important;
+  }
 </style>
 
 <!-- SQL Queries -->
 
+```sql bu_list
+select distinct
+    cast(business_unit_id as text) as business_unit_id,
+    business_unit
+from analytics.fct_executive_cockpit
+where ('%' in ${inputs.region.value} or (select null where 0) in ${inputs.region.value} or cast(region_id as text) in ${inputs.region.value})
+order by cast(business_unit_id as int)
+```
+
+```sql region_list
+select distinct
+    cast(region_id as text) as region_id,
+    region
+from analytics.fct_executive_cockpit
+where ('%' in ${inputs.business_unit.value} or (select null where 0) in ${inputs.business_unit.value} or cast(business_unit_id as text) in ${inputs.business_unit.value})
+order by cast(region_id as int)
+```
+
 ```sql kpi_active_projects
 select count(distinct project_id) as active_projects
-from postgres.dim_projects
+from analytics.dim_projects
 where is_active = true
 ```
 
 ```sql kpi_completion_rate
 select
     coalesce(count(case when is_active = false then 1 end) * 1.0 / nullif(count(*), 0), 0) as completion_rate
-from postgres.dim_projects
+from analytics.dim_projects
 where created_at >= case
     when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
     when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
@@ -160,12 +200,12 @@ and created_at <= '2026-06-15'::date
 
 ```sql kpi_total_catalog_value
 select avg(price) as avg_price
-from postgres.dim_products
+from analytics.dim_products
 ```
 
 ```sql kpi_total_variants
 select count(*) as total_variants
-from postgres.dim_products
+from analytics.dim_products
 ```
 
 ```sql detailed_projects
@@ -174,7 +214,7 @@ select
     project_name,
     company_name,
     case when is_active = true then '🟢 Active' else '⚪ Completed' end as status
-from postgres.dim_projects
+from analytics.dim_projects
 where created_at >= case
     when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
     when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
@@ -189,7 +229,7 @@ order by status asc, project_name asc
 select
     vendor,
     avg(price) as average_price
-from postgres.dim_products
+from analytics.dim_products
 where created_at >= case
     when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
     when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
@@ -204,9 +244,9 @@ order by average_price desc
 <!-- UI Layout -->
 
 <div class="flex gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
-  <button on:click={() => goto(addBasePath(`/?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Overview Cockpit</button>
-  <button on:click={() => goto(addBasePath(`/sales?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all">Sales & Win-Loss</button>
-  <button on:click={() => goto(addBasePath(`/operations?time_filter=${activeFilter}`))} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all">Operations & Vendors</button>
+  <button on:click={() => goto(buildNavUrl('/overview'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Overview Cockpit</button>
+  <button on:click={() => goto(buildNavUrl('/sales'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Sales & Win-Loss</button>
+  <button on:click={() => goto(buildNavUrl('/operations'))} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Operations & Vendors</button>
 </div>
 
 <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
@@ -214,17 +254,21 @@ order by average_price desc
   <div class="flex flex-col gap-2">
     <div class="text-base font-extrabold text-[#264773]">Operations & Product Catalog</div>
     
-    <div class="flex items-center gap-3">
-      {#key activeFilter}
-        <ButtonGroup name="time_filter" defaultValue={activeFilter}>
-          <ButtonGroupItem valueLabel="MTD" value="mtd" default={activeFilter === 'mtd'} />
-          <ButtonGroupItem valueLabel="QTD" value="qtd" default={activeFilter === 'qtd'} />
-          <ButtonGroupItem valueLabel="YTD" value="ytd" default={activeFilter === 'ytd'} />
-          <ButtonGroupItem valueLabel="All Time" value="all" default={activeFilter === 'all'} />
-        </ButtonGroup>
-      {/key}
-      <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2.5 py-1 rounded h-[26px] flex items-center gap-1.5">
-        <span class="text-gray-400">📅</span> {dateRangeText}
+    <!-- Dynamic 3 Slicers: Date Range, Business Unit, Region -->
+    <div class="flex flex-wrap items-start gap-3">
+      <!-- Date Slicer Column: ButtonGroup + Date Range Display ALWAYS BELOW -->
+      <div class="flex flex-col gap-1">
+        <GlobalSingleSelect name="time_filter" defaultValue="ytd" />
+
+        <div class="text-[9px] text-gray-500 font-semibold bg-white shadow-sm border border-gray-200 px-2 py-0.5 rounded flex items-center gap-1.5 w-max">
+          <span class="text-gray-400">📅</span> {dateRangeText}
+        </div>
+      </div>
+      
+      <!-- Bound dynamically to SQL queries bu_list and region_list -->
+      <div class="flex items-center gap-2">
+        <GlobalMultiSelect name="business_unit" title="Business Unit" data={bu_list} valueColumn="business_unit_id" labelColumn="business_unit" />
+        <GlobalMultiSelect name="region" title="Region" data={region_list} valueColumn="region_id" labelColumn="region" />
       </div>
     </div>
     
@@ -271,7 +315,7 @@ order by average_price desc
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 mb-3.5">
   
   <!-- KPI 1: Project Completion Rate -->
-  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Project Completion Rate</span>
@@ -287,7 +331,7 @@ order by average_price desc
   </a>
 
   <!-- KPI 2: Active Projects -->
-  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Ongoing Active Projects</span>
@@ -303,7 +347,7 @@ order by average_price desc
   </a>
 
   <!-- KPI 3: Average Variant Catalog Price -->
-  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Variant Pricing</span>
@@ -319,7 +363,7 @@ order by average_price desc
   </a>
 
   <!-- KPI 4: Total Variants Registered -->
-  <a href={addBasePath(`/?time_filter=${activeFilter}`)} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Shopify Variant Count</span>

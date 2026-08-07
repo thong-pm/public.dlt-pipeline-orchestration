@@ -26,7 +26,6 @@ RUN poetry install --no-interaction --no-ansi --no-root
 COPY . .
 
 # Ensure the entrypoint script is executable
-RUN chmod +x run.sh
+RUN chmod +x scripts/pipeline.sh
 
-# Set the entrypoint script as the default command
-CMD ["./run.sh"]
+CMD ["bash", "scripts/pipeline.sh", "cloud"]

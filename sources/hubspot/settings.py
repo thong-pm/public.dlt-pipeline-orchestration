@@ -67,6 +67,7 @@ DEFAULT_DEAL_PROPS = [
     "createdate",
     "dealname",
     "dealstage",
+    "hs_forecast_amount",
     "hs_lastmodifieddate",
     "hs_object_id",
     "pipeline",

@@ -47,22 +47,9 @@ if (process.env.EVIDENCE_DB_TYPE === 'postgres') {
     process.env.EVIDENCE_DB_SSL = process.env.EVIDENCE_DB_SSL || 'false';
 }
 
-/** normalize a base path env var: remove leading/trailing slashes, return empty string if not provided */
-function normalizedBasePathFromEnv(varName) {
-    const raw = process.env[varName] || '';
-    const trimmed = raw.toString().trim();
-    if (!trimmed) return '';
-    return '/' + trimmed.replace(/^\/+|\/+$/g, '');
-}
-
-const BASE_PATH = normalizedBasePathFromEnv('SVELTE_BASE_PATH'); // set this in the workflow to "public.dlt-pipeline-orchestration" (no slashes)
-
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
     kit: {
-        paths: {
-            base: BASE_PATH
-        },
         prerender: {
             crawl: true,
             // allow prerender to continue on reasonable 404/5xx responses encountered while crawling dynamic routes
