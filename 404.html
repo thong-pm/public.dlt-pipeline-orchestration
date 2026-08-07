@@ -10,11 +10,10 @@
         var search = window.location.search;
         var hash = window.location.hash;
         
-        // Append trailing slash to folder routes if missing
+        // Only redirect if path does not end with '/' and has no file extension
         if (path && !path.endsWith('/') && !path.includes('.')) {
-          path = path + '/';
+          window.location.replace(path + '/' + search + hash);
         }
-        window.location.replace(path + search + hash);
       })();
     </script>
   </head>
