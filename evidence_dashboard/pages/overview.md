@@ -97,7 +97,13 @@ title: "Executive Cockpit Dashboard"
 
   :global(body) { 
     background-color: #05070b !important; 
-    overflow-y: hidden !important; 
+    overflow-y: auto !important; 
+  }
+
+  @media (min-width: 1024px) {
+    :global(body) {
+      overflow-y: hidden !important;
+    }
   }
 
   :global(main) { 

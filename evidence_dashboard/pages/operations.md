@@ -85,7 +85,13 @@ title: "Operations & Catalog Analytics"
   /* Set global background and text colors */
   :global(body) { 
     background-color: #05070b !important; 
-    overflow-y: hidden !important; /* Lock vertical scroll on dashboard screen */
+    overflow-y: auto !important; 
+  }
+
+  @media (min-width: 1024px) {
+    :global(body) {
+      overflow-y: hidden !important;
+    }
   }
   
   /* Expand the main content to fill the screen width up to a limit and center vertically */
