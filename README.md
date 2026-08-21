@@ -1,6 +1,6 @@
 # Multi-Source SaaS Serverless ELT Pipeline & BI Dashboard
 
-A production-ready, parallel ingestion, transformation, and BI dashboard pipeline for **HubSpot**, **Xero**, **Shopify**, and **Procore** data powered by `dlt`, `dbt Core`, and `Evidence.dev`.
+An end-to-end, code-first data pipeline integrating **HubSpot**, **Xero**, **Shopify**, and **Procore** into **Google BigQuery** (Cloud) and **PostgreSQL** (Local), powered by `dlt`, `dbt Core`, and `Evidence.dev`.
 
 ![DLT Pipeline Architecture](dtl-pipeline-multi-saas.png)
 
@@ -8,16 +8,17 @@ A production-ready, parallel ingestion, transformation, and BI dashboard pipelin
 
 ## 🚀 Overview
 
-A cost-effective serverless ELT solution that centralizes client data from SaaS APIs into **Google BigQuery** (Production) or **PostgreSQL** (Local Development), eliminating expensive monthly third-party connector subscriptions (e.g. Fivetran, Stitch).
+A code-first serverless ELT pipeline that centralizes data from SaaS APIs into **Google BigQuery** (Production) or **PostgreSQL** (Local Development) using open-source tooling.
 
 ### Core Capabilities
-* **Zero Third-Party Fees**: Uses open-source `dlt` for schema evolution and parallel API ingestion.
-* **In-Database SQL Transformations**: Orchestrates post-load `dbt Core` builds to clean raw data and populate downstream reporting marts.
-* **Embedded BI Dashboard**: Includes `Evidence.dev` markdown-based analytical cockpit with zero-latency custom slicers and dynamic cross-filtering.
-* **OAuth 2.0 Self-Rotation**: Automatically refreshes and persists Xero and Procore OAuth tokens to `.dlt/secrets.toml` and GCS Token Vault.
-* **Preflight Connection Resilience**: Validates credentials before running, gracefully skipping failing sources to keep other ingestions online.
-* **Slack & Email Observability**: Automated notifications with row counts, dbt test results, and critical failure alerts.
-* **GCP Serverless Deployment**: Containerized with Docker on GCP Cloud Run Jobs, triggered on-demand or via Cloud Scheduler.
+* **API Retry & Rate Limit Handling**: Catches HTTP 429 rate limits, parses `Retry-After` headers, and retries transient network or 5xx server drops with exponential backoff using `tenacity`.
+* **Preflight Connection Resilience**: Verifies credentials and checks OAuth refresh tokens prior to execution; prompts for interactive re-authorization locally or isolates and skips failing sources so remaining ingestions continue.
+* **Schema Evolution**: Powered by `dlt` to detect upstream schema modifications, infer data types, and apply table migrations automatically in the destination warehouse.
+* **Merge Write Dispositions**: Uses primary-key merge dispositions (`write_disposition="merge"`) across CRM and ERP endpoints to upsert records and avoid duplicates during re-runs.
+* **In-Warehouse Transformations**: Orchestrates post-load `dbt Core` builds to clean, union, and model raw source data into reporting marts without modifying raw data.
+* **Metric-to-Source Lineage**: Modular staging-to-intermediate-to-mart DAG structure tracing dashboard figures back to source entity IDs (`invoice_id`, `deal_id`, `project_id`).
+* **Execution Observability**: Sends Slack notifications summarizing `dlt` ingestion row counts and `dbt test` execution outcomes after each pipeline run.
+* **Serverless Execution & Headless OAuth**: Runs as a containerized job on GCP Cloud Run Jobs, automatically refreshing and persisting rotating OAuth 2.0 tokens (Xero, Procore) to a GCS Token Vault.
 
 ---
 
@@ -28,7 +29,11 @@ A cost-effective serverless ELT solution that centralizes client data from SaaS 
 ├── .dlt/
 │   ├── config.toml      # Master Control Panel (pipeline toggles, active resources)
 │   └── secrets.toml     # Sensitive credentials & OAuth tokens (git-ignored)
-├── dbt_transform/       # dbt models for staging, intermediate, and marts layers
+├── dbt_transform/       # dbt transformation models & automated tests
+│   └── models/
+│       ├── staging/      # Raw source cleaning & typecasting (hubspot, xero, shopify, procore)
+│       ├── intermediate/ # Cross-source deduplication & unified revenue streams
+│       └── marts/        # Analytical facts & dimensions for BI reporting
 ├── evidence_dashboard/  # Evidence.dev BI dashboard (pages, components, queries)
 ├── runners/             # Python execution orchestrators (parallel run_all.py)
 ├── scripts/             # Unified CLI (pipeline.sh) & OAuth helper scripts
@@ -119,7 +124,10 @@ dlt (Extract + Load)
 
 The BI dashboard is built with Evidence.dev and deployed automatically to GitHub Pages.
 
-* **Environment Authentication**: Evidence authenticates via environment variables (`PGPASSWORD` for Postgres, Application Default Credentials for BigQuery).
+> [!NOTE]
+> The demo dashboard does use simulated scenario data modeled after real-world SaaS business transactions.
+
+**Environment Authentication**: Evidence authenticates via environment variables (`PGPASSWORD` for Postgres, Application Default Credentials for BigQuery).
 * **Production CI/CD**:
   * Push to `dev` branch → Deploys preview dashboard to GitHub Pages (`/dev/overview`).
   * Merge to `main` branch → Deploys production dashboard to GitHub Pages (`/overview`).
@@ -148,3 +156,11 @@ Each source requires initial configuration in `.dlt/secrets.toml`:
 ### Shopify
 1. Create a Custom App in Shopify Admin under App Development.
 2. Copy Admin API Access Token and Store URL into `[sources.shopify]` in `.dlt/secrets.toml`.
+
+---
+
+## 📌 Roadmap & Known Gaps
+
+- [ ] **Terraform**: Provision Cloud Run, Scheduler, and GCS with Terraform instead of manual `gcloud` CLI commands.
+- [ ] **Pipeline CI/CD**: Automate Docker image build and deployment to Cloud Run on git push (currently deployed via CLI).
+- [ ] **Python Orchestrator**: Replace the bash runner (`pipeline.sh`) with a Python runner for cleaner error handling and alerts.
