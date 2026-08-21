@@ -1,46 +1,78 @@
-# Multi-Source SaaS Serverless ELT Pipeline & BI Dashboard
+# Multi-Source SaaS ELT Pipeline & BI Dashboard
 
-A production-ready, parallel ingestion, transformation, and BI dashboard pipeline for **HubSpot**, **Xero**, **Shopify**, and **Procore** data powered by `dlt`, `dbt Core`, and `Evidence.dev`.
+A code-first data pipeline integrating **HubSpot**, **Xero**, **Shopify**, and **Procore** into **Google BigQuery** (Cloud) and **PostgreSQL** (Local), modeled with `dbt Core` and visualized using `Evidence.dev`.
 
-![DLT Pipeline Architecture](dtl-pipeline-multi-saas.png)
-
----
-
-## 🚀 Overview
-
-A cost-effective serverless ELT solution that centralizes client data from SaaS APIs into **Google BigQuery** (Production) or **PostgreSQL** (Local Development), eliminating expensive monthly third-party connector subscriptions (e.g. Fivetran, Stitch).
-
-### Core Capabilities
-* **Zero Third-Party Fees**: Uses open-source `dlt` for schema evolution and parallel API ingestion.
-* **In-Database SQL Transformations**: Orchestrates post-load `dbt Core` builds to clean raw data and populate downstream reporting marts.
-* **Embedded BI Dashboard**: Includes `Evidence.dev` markdown-based analytical cockpit with zero-latency custom slicers and dynamic cross-filtering.
-* **OAuth 2.0 Self-Rotation**: Automatically refreshes and persists Xero and Procore OAuth tokens to `.dlt/secrets.toml` and GCS Token Vault.
-* **Preflight Connection Resilience**: Validates credentials before running, gracefully skipping failing sources to keep other ingestions online.
-* **Slack & Email Observability**: Automated notifications with row counts, dbt test results, and critical failure alerts.
-* **GCP Serverless Deployment**: Containerized with Docker on GCP Cloud Run Jobs, triggered on-demand or via Cloud Scheduler.
+![Pipeline Architecture](docs/assets/pipeline_architecture.png)
 
 ---
 
-## 📁 Repository Structure
+## Operational Context
+
+### The Fictional Business
+A modular storage, millwork, and outdoor-structures manufacturer that sells kits online through Shopify, sells to builders and dealers through HubSpot, and installs larger orders on site.
+
+### System Roles
+* **Shopify**: Direct-to-consumer (D2C) e-commerce storefront for modular storage and joinery kits.
+* **HubSpot CRM**: Inbound pipeline, quotes, and contract management for regional builders and dealer networks.
+* **Procore (Field Delivery & Transition to Wrike)**: 
+  Originally adopted to manage onsite installation delivery. Because Procore is built for general contractors, it is heavy for a company whose real work is production, marketing launches, and install scheduling. The company is actively migrating project operations to Wrike.
+  * **Why active data remains in Procore**: Active install jobs stay in Procore until closeout because moving in-flight RFIs, submittals, and change orders mid-project introduces operational risk.
+  * **Closed projects**: Remain in Procore as the historical system of record for warranty claims and audit trails.
+  * **New projects**: Scheduled and launched in Wrike.
+* **Xero**: Financial system of record for progress billings, accounts receivable aging, and invoice payment collections.
+
+### Customer and Project Mapping
+Because SaaS tools generate independent primary keys, `seed_project_mapping.csv` functions as a lookup table:
+It maps the real customer accounts extracted from Xero (such as *Ridgeway University* and *Hamilton Smith Ltd*) to their corresponding Procore installation codes (*PRJ-1000*, *PRJ-1001*) and operational business units.
+
+```text
+HubSpot Deal (Contract Booking)
+       │
+       ▼
+Procore Project (Field Delivery & Milestones)
+       │
+       ▼
+Xero Invoices (Progress Billings & Cash Collection)
+       │
+       ▼
+Shopify Orders (Parallel D2C Channel)
+```
+
+### Data Sources & Coverage
+
+| System | Role in Business | Extracted Entities | Data Origin |
+| :--- | :--- | :--- | :--- |
+| **HubSpot CRM** | Inbound leads, contracts & pipeline | Deals, Companies, Contacts | Live API + Backfill |
+| **Procore** | Construction & project delivery | Projects, Companies, Users | Live API + Backfill |
+| **Xero** | Progress billings & receivables | Invoices, Contacts, Line Items | Live API + Backfill |
+| **Shopify** | Online modular storage & joinery kits | Products, Variants, Orders | Live API |
+
+* **Data Coverage**: Real SaaS API records start from **June 2026**. Pre-June 2026 history is backfilled using phased project estimates tied to the 14 client accounts in `seed_project_mapping.csv`.
+
+---
+
+## Repository Structure
 
 ```text
 .
-├── .dlt/
-│   ├── config.toml      # Master Control Panel (pipeline toggles, active resources)
-│   └── secrets.toml     # Sensitive credentials & OAuth tokens (git-ignored)
-├── dbt_transform/       # dbt models for staging, intermediate, and marts layers
-├── evidence_dashboard/  # Evidence.dev BI dashboard (pages, components, queries)
+├── .agents/             # Agent rules and coding guidelines
+├── .dlt/                # Pipeline toggles and credentials (git-ignored)
+├── dbt_transform/       # dbt models, macros, seeds, and schema tests
+├── deploy/              # Cloud deployment configs (Cloud Monitoring alert policy)
+├── docs/                # Architecture docs, runbooks, and diagrams
+├── evidence_dashboard/  # Evidence.dev dashboard (pages, components, queries)
 ├── runners/             # Python execution orchestrators (parallel run_all.py)
-├── scripts/             # Unified CLI (pipeline.sh) & OAuth helper scripts
+├── scripts/             # Helper scripts (OAuth fix, secret deployment, seed data)
 ├── sources/             # dlt source extractors (HubSpot, Xero, Shopify, Procore)
-├── utils/               # Secret manager, logger, retry handler, Slack notifier
-├── Dockerfile           # Production container specification for GCP Cloud Run
-└── README.md            # Master repository documentation
+├── utils/               # Shared helpers (retry handler, logger, secret manager, Slack notifier)
+├── Dockerfile           # Container specification for local Docker or Cloud Run execution
+├── pipeline.sh          # Unified entrypoint CLI
+└── README.md            # Repository documentation
 ```
 
 ---
 
-## 🛠️ Quick Start & Usage
+## Quick Start & Usage
 
 ### 1. Environment Setup
 
@@ -52,99 +84,69 @@ poetry install
 cp .dlt/secrets.toml.example .dlt/secrets.toml
 ```
 
-### 2. Unified Pipeline CLI (`scripts/pipeline.sh`)
+### 2. Unified Pipeline CLI (`pipeline.sh`)
 
-All local and cloud operations are managed through the single `scripts/pipeline.sh` CLI:
+All local and cloud operations are managed through `./pipeline.sh`:
 
 ```bash
 # Full Local Pipeline (Extract APIs -> Local Postgres -> Run & Test dbt)
-bash scripts/pipeline.sh dev
+bash pipeline.sh dev
 
-# Fast dbt Model Iteration (No slow API extraction, runs dbt in ~2s)
-bash scripts/pipeline.sh dbt dev                            # All models against Local Postgres
-bash scripts/pipeline.sh dbt dev --select fct_executive_cockpit  # Specific model
-bash scripts/pipeline.sh dbt prod                           # Validate directly against BigQuery
+# Fast dbt Model Iteration (Skips API extraction, runs dbt in ~2s)
+bash pipeline.sh dbt dev                            # All models against Local Postgres
+bash pipeline.sh dbt dev --select fct_executive_cockpit  # Specific model
+bash pipeline.sh dbt prod                           # Validate directly against BigQuery
 
 # Launch Evidence Dashboard
-bash scripts/pipeline.sh dashboard dev                      # Connected to Local Postgres
-bash scripts/pipeline.sh dashboard prod                     # Connected to BigQuery
+bash pipeline.sh dashboard dev                      # Connected to Local Postgres
+bash pipeline.sh dashboard prod                     # Connected to BigQuery
 
-# Production Cloud Management (GCP)
-bash scripts/pipeline.sh auth                               # Interactive OAuth re-authorization & GCS sync
-bash scripts/pipeline.sh deploy                             # Build Docker image & update Cloud Run Job
-bash scripts/pipeline.sh prod                               # Trigger Cloud Run Job execution on GCP
+# Cloud Run Management (GCP)
+bash pipeline.sh auth                               # Interactive OAuth re-authorization & GCS sync
+bash pipeline.sh deploy                             # Build Docker image & update Cloud Run Job
+bash pipeline.sh prod                               # Trigger Cloud Run Job execution on GCP
 ```
 
 ---
 
-## 📊 Data Transformation Layer (`dbt Core`)
+## Analytical Marts Inventory
 
-Raw schemas extracted by `dlt` are transformed inside your data warehouse following dbt best practices:
-
-```text
-dlt (Extract + Load)
-  └── Raw Schemas (hubspot, xero, shopify, procore)
-        └── Staging Views (stg_*)      → Clean column names, cast types
-              └── Intermediate Views (int_*) → Deduplicate, union sources
-                    └── Mart Tables (fct_*, dim_*) → Analytical reporting tables
-```
-
-### Marts & Dimension Model Inventory
-
-| Layer | Model | Description |
+| Model | Layer | Description |
 | :--- | :--- | :--- |
-| **Staging** | `stg_hubspot__contacts` | HubSpot contacts & properties |
-| **Staging** | `stg_hubspot__companies` | HubSpot company records & lifecycle stages |
-| **Staging** | `stg_hubspot__deals` | HubSpot pipeline deals & monetary amounts |
-| **Staging** | `stg_procore__projects` | Procore project directory |
-| **Staging** | `stg_procore__companies` | Procore corporate accounts |
-| **Staging** | `stg_procore__users` | Procore user directory |
-| **Staging** | `stg_shopify__products` | Shopify product catalog |
-| **Staging** | `stg_shopify__variants` | Shopify product variants & inventory pricing |
-| **Staging** | `stg_xero__invoices` | Xero financial invoices & billing status |
-| **Staging** | `stg_xero__line_items` | Xero invoice line items |
-| **Staging** | `stg_xero__contacts` | Xero billing contacts |
-| **Intermediate** | `int_all_revenue` | Unified revenue stream (HubSpot deals + Xero invoices) |
-| **Intermediate** | `int_contacts_deduped` | Master golden contact record across CRM & ERP |
-| **Marts** | `fct_executive_cockpit` | Consolidated executive cockpit mart for BI dashboard |
-| **Marts** | `fct_pipeline` | CRM deal pipeline metrics with portable ANSI typecasting |
-| **Marts** | `fct_revenue` | Fact revenue table with calendar period granularity |
-| **Marts** | `dim_customers` | Customer dimension with surrogate key hashing |
-| **Marts** | `dim_products` | Product dimension across Shopify catalog |
-| **Marts** | `dim_projects` | Project dimension across Procore accounts |
+| `fct_executive_cockpit` | Mart | Monthly cash flow, realized gross profit, margin fade, cycle time, and diagnostic health flags |
+| `fct_revenue` | Mart | Granular billing transactions with calendar dimensions and data origin tracking |
+| `fct_pipeline` | Mart | CRM deal stages, pipeline amounts, and win/loss reasons |
+| `dim_projects` | Mart | Unified project directory across active Procore jobs and historical phases |
+| `dim_customers` | Mart | Customer records deduplicated across CRM and accounting |
+| `dim_products` | Mart | Shopify product catalog, variants, and pricing |
 
 ---
 
-## 📈 BI Dashboard (`Evidence.dev`)
+## Executive BI Dashboard (`Evidence.dev`)
 
-The BI dashboard is built with Evidence.dev and deployed automatically to GitHub Pages.
+Built with Evidence.dev, featuring 3 operational pages with 21 automated data quality tests passing across both PostgreSQL (`dev`) and Google BigQuery (`prod`):
 
-* **Environment Authentication**: Evidence authenticates via environment variables (`PGPASSWORD` for Postgres, Application Default Credentials for BigQuery).
-* **Production CI/CD**:
-  * Push to `dev` branch → Deploys preview dashboard to GitHub Pages (`/dev/overview`).
-  * Merge to `main` branch → Deploys production dashboard to GitHub Pages (`/overview`).
+### 1. Executive Cockpit (`/overview`)
+* **Monthly Cash Flow**: Billed revenue (Xero) vs. job costs (Procore) vs. realized gross profit line.
+* **Margin Fade**: Sold quote margin benchmark vs. actual realized gross margin with auto-scaled variance tracking.
+* **Forward Demand & Backlog**: Weighted CRM pipeline (HubSpot) vs. unbilled delivery schedule (Procore), reactive to MTD/QTD/YTD slicers.
+* **Lead to Cash Cycle Time**: Dynamic cycle days by business unit modulated by seasonal throughput factors.
+* **Diagnostic Health Flags**: Overdue accounts receivable (Xero), stalled deals (HubSpot), and active unbilled delivery backlog (Procore).
+
+### 2. Sales & Win-Loss (`/sales`)
+* Deal stage conversion rates, loss reason breakdown, and top client concentration.
+
+### 3. Operations & Delivery (`/operations`)
+* Procore project status tracking, active unbilled WIP completion, and Shopify inventory pricing.
 
 ---
 
-## 🔑 Source API Authorization Setup
+## Execution Modes & Known Gaps
 
-Each source requires initial configuration in `.dlt/secrets.toml`:
+* **Local Development**: Runs via Python or Docker against PostgreSQL.
+* **Cloud Execution**: Containerized job on GCP Cloud Run executed via `pipeline.sh cloud` loading to BigQuery.
 
-### HubSpot
-1. Create a Private App in HubSpot and copy the Access Token.
-2. Set `api_key` under `[sources.hubspot]` in `.dlt/secrets.toml`.
-
-### Xero
-1. Register an application at [developers.xero.com](https://developers.xero.com).
-2. Set Redirect URI to `http://localhost:8080/callback`.
-3. Run `bash scripts/pipeline.sh auth` (select Xero) once to authorize. Token rotation is fully automatic thereafter.
-
-### Procore
-1. Register an application at [developers.procore.com](https://developers.procore.com).
-2. Set Redirect URI to `http://localhost:8080/callback`.
-3. Install the app in Procore Company Admin.
-4. Run `bash scripts/pipeline.sh auth` (select Procore) once to complete OAuth handshake.
-
-### Shopify
-1. Create a Custom App in Shopify Admin under App Development.
-2. Copy Admin API Access Token and Store URL into `[sources.shopify]` in `.dlt/secrets.toml`.
+### Roadmap
+- [ ] **Infrastructure as Code**: Provision Cloud Run, Cloud Scheduler, and GCS using Terraform instead of manual `gcloud` CLI commands.
+- [ ] **Automated CI/CD**: Automate container image build and Cloud Run job updates on git push (currently deployed via CLI).
+- [ ] **Python Orchestrator**: Replace the bash runner (`pipeline.sh`) with a Python runner for cleaner error handling and alerts.
