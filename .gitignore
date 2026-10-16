@@ -29,9 +29,12 @@ logs/
 scratch/
 
 # Personal note
-docs/
 *note.txt
 
 # Evidence
 evidence_dashboard/.env
 node_modules/
+
+# Agent rules
+agent.md
+AGENTS.md

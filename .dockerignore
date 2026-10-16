@@ -15,3 +15,6 @@ dbt_transform/dbt_packages/
 *.log
 .pytest_cache/
 .ipynb_checkpoints/
+evidence_dashboard/
+docs/
+*.png
