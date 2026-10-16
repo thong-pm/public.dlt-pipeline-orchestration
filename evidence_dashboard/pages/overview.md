@@ -94,6 +94,13 @@ title: "Executive Cockpit Dashboard"
   :global(h1) { display: none !important; }
   :global(main > :first-child) { display: none !important; }
   :global(.breadcrumbs), :global(.breadcrumb) { display: none !important; }
+  :global(details) { display: none !important; }
+  :global(.status-bar) { display: none !important; }
+  :global([class*="status-bar"]) { display: none !important; }
+  :global(button[aria-label*="sql" i]) { display: none !important; }
+  :global(.query-viewer) { display: none !important; }
+  :global([class*="QueryViewer"]) { display: none !important; }
+  :global(main > div:has(button[aria-label*="sql" i])) { display: none !important; }
 
   :global(body) { 
     background-color: #05070b !important; 
@@ -111,15 +118,6 @@ title: "Executive Cockpit Dashboard"
     max-width: 1280px !important; 
     margin: 0 auto !important;
     padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; 
-  }
-
-  :global(.text-\[\#264773\]) {
-    color: #0d9488 !important;
-  }
-
-  :global(button.bg-\[\#264773\]) {
-    background-color: #0d9488 !important;
-    color: #ffffff !important;
   }
 
   :global(.bg-white) {
@@ -256,11 +254,19 @@ select
         else 0.0
     end as margin_fade_pct,
     coalesce(sum(wip_value), 0) as wip_value,
-    coalesce(sum(total_ar_overdue), 0) as total_ar_overdue,
+    coalesce(sum(case when month_date = '2026-06-01' then total_ar_overdue else 0 end), 0) as total_ar_overdue,
+    coalesce(sum(case when month_date = '2026-06-01' then overdue_invoices_count else 0 end), 0) as overdue_invoices_count,
+    coalesce(sum(stalled_deals_count), 0) as stalled_deals_count,
+    coalesce(sum(stalled_deals_amount), 0) as stalled_deals_amount,
     coalesce(sum(total_booked_pipeline), 0) as total_booked_pipeline,
     coalesce(sum(total_weighted_open_pipeline), 0) as total_weighted_open_pipeline,
     coalesce(sum(total_revenue_forecast), 0) as total_revenue_forecast,
-    coalesce(avg(lead_to_cash_days), 29.0) as lead_to_cash_days
+    coalesce(avg(lead_to_cash_days), 29.0) as lead_to_cash_days,
+    case 
+        when sum(total_billed_revenue) > 0 
+        then sum(case when data_origin_share_backfill is not null then total_billed_revenue * data_origin_share_backfill else 0 end) / sum(total_billed_revenue)
+        else 0.0
+    end as backfill_share_pct
 from analytics.fct_executive_cockpit
 where month_date >= case
     when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
@@ -279,7 +285,7 @@ select
     strftime(month_date, '%b %Y') as month_date,
     sum(total_billed_revenue) as billed_revenue,
     sum(total_actual_job_costs) as job_costs,
-    sum(total_booked_pipeline) as booked_contracts
+    sum(gross_profit_amount) as gross_profit
 from analytics.fct_executive_cockpit
 where month_date >= case
     when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
@@ -302,7 +308,7 @@ select
     case 
         when sum(total_billed_revenue) > 0 
         then (sum(total_billed_revenue) - sum(total_actual_job_costs)) / sum(total_billed_revenue)
-        else 0.0
+        else null
     end as actual_margin_pct
 from analytics.fct_executive_cockpit
 where month_date >= case
@@ -325,8 +331,17 @@ select
     sum(total_weighted_open_pipeline) as weighted_pipeline,
     sum(wip_billing_schedule) as wip_billing_schedule
 from analytics.fct_executive_cockpit
-where month_date >= '2026-06-01'::date
-and date_trunc('month', month_date) <= '2026-12-01'::date
+where month_date >= case
+    when '${inputs.time_filter}' = 'mtd' then date_trunc('month', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'qtd' then date_trunc('quarter', '2026-06-15'::date)
+    when '${inputs.time_filter}' = 'ytd' then date_trunc('year', '2026-06-15'::date)
+    else '1970-01-01'::date
+end
+and month_date <= case
+    when '${inputs.time_filter}' in ('mtd', 'qtd') then '2026-06-30'::date
+    when '${inputs.time_filter}' = 'ytd' then '2026-12-31'::date
+    else '2026-12-31'::date
+end
 and ('%' in ${inputs.business_unit.value} or (select null where 0) in ${inputs.business_unit.value} or cast(business_unit_id as text) in ${inputs.business_unit.value})
 and ('%' in ${inputs.region.value} or (select null where 0) in ${inputs.region.value} or cast(region_id as text) in ${inputs.region.value})
 group by 2
@@ -352,7 +367,7 @@ order by avg_days desc
 
 <!-- Header Navigation Bar -->
 <div class="flex gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
-  <button on:click={() => goto(buildNavUrl('/overview'))} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Overview Cockpit</button>
+  <button on:click={() => goto(buildNavUrl('/overview'))} class="px-3 py-1 rounded bg-[#0d9488] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Overview Cockpit</button>
   <button on:click={() => goto(buildNavUrl('/sales'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Sales & Win-Loss</button>
   <button on:click={() => goto(buildNavUrl('/operations'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Operations & Vendors</button>
 </div>
@@ -360,7 +375,7 @@ order by avg_days desc
 <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
   <!-- Left Side: Title & Slicers -->
   <div class="flex flex-col gap-2">
-    <div class="text-base font-extrabold text-[#264773]">Executive Cockpit Dashboard</div>
+    <div class="text-base font-extrabold text-[#0d9488]">Executive Cockpit Dashboard</div>
     
     <!-- Dynamic 3 Slicers: Date Range, Business Unit, Region -->
     <div class="flex flex-wrap items-start gap-3">
@@ -380,40 +395,35 @@ order by avg_days desc
       </div>
     </div>
     
-    <div style="color: #ffffff;" class="text-[8px] font-semibold bg-white/10 border border-white/20 px-2 py-0.5 rounded self-start">
-      Date snapshotted at June 2026
+    <div style="color: #ffffff;" class="text-[8px] font-semibold bg-white/10 border border-white/20 px-2.5 py-1 rounded self-start flex items-center gap-1.5 flex-wrap">
+      <span>Snapshot: June 2026</span>
+      <span class="text-white/40">|</span>
+      <span>Live APIs: HubSpot, Xero, Procore, Shopify</span>
+      <span class="text-white/40">|</span>
+      <span>Backfill share: <Value data={cockpit_summary} column=backfill_share_pct fmt="pct1" /></span>
     </div>
   </div>
 
-  <!-- Right Side: Cross-System Profitability & Cash Flow Alert Card -->
+  <!-- Right Side: Three Cross-System Diagnostic Health Flags -->
   <div class="flex flex-col items-end self-stretch md:self-auto">
-    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[340px] min-h-[75px] flex flex-col justify-between text-[9px]">
-      <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center gap-1">
-        <span>💡</span> Executive Cross-System Insights
+    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[360px] min-h-[80px] flex flex-col justify-between text-[9px]">
+      <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center justify-between">
+        <span class="flex items-center gap-1"><span>🛡️</span> Cross-System Diagnostic Flags</span>
+        <span class="text-[8px] text-[#0d9488] font-bold">3 Signals Active</span>
       </div>
-      <div class="flex flex-col gap-1 text-gray-600 leading-tight">
-        {#if cockpit_summary[0]?.total_ar_overdue && cockpit_summary[0]?.total_ar_overdue > 0}
-          <div class="flex items-start gap-1">
-            <span class="text-amber-600 font-bold">⚠️</span>
-            <span>Overdue Accounts Receivable: <Value data={cockpit_summary} column=total_ar_overdue fmt=usd /> in Xero pending collection.</span>
-          </div>
-        {:else}
-          <div class="flex items-start gap-1">
-            <span class="text-teal-600 font-bold">✓</span>
-            <span>Accounts Receivable collection is healthy with zero overdue balances.</span>
-          </div>
-        {/if}
-        {#if cockpit_summary[0]?.margin_fade_pct && cockpit_summary[0]?.margin_fade_pct > 0.03}
-          <div class="flex items-start gap-1">
-            <span class="text-amber-600 font-bold">⚠️</span>
-            <span>Margin Fade Warning: Net margin is <Value data={cockpit_summary} column=margin_fade_pct fmt="pct1" /> below sold contract estimate.</span>
-          </div>
-        {:else}
-          <div class="flex items-start gap-1">
-            <span class="text-teal-600 font-bold">✓</span>
-            <span>Gross Profit Margin is performing on target vs sold estimates.</span>
-          </div>
-        {/if}
+      <div class="flex flex-col gap-1 text-gray-600 leading-tight mt-1">
+        <div class="flex items-start gap-1">
+          <span class="text-amber-600 font-bold">⚠️</span>
+          <span><strong>Xero Overdue AR:</strong> <Value data={cockpit_summary} column=overdue_invoices_count /> invoice (<Value data={cockpit_summary} column=total_ar_overdue fmt=usd />) pending collection.</span>
+        </div>
+        <div class="flex items-start gap-1">
+          <span class="text-amber-600 font-bold">⚠️</span>
+          <span><strong>HubSpot Stalled Deals:</strong> <Value data={cockpit_summary} column=stalled_deals_count /> deals (<Value data={cockpit_summary} column=stalled_deals_amount fmt=usd />) stalled past close date.</span>
+        </div>
+        <div class="flex items-start gap-1">
+          <span class="text-[#264773] font-bold">📋</span>
+          <span><strong>Procore Delivery Backlog:</strong> <Value data={cockpit_summary} column=wip_value fmt=usd /> active unbilled contract work.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -518,8 +528,8 @@ order by avg_days desc
   <!-- Graph 1: Monthly Cash Flow -->
   <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
     <div class="flex items-center gap-1.5 mb-1">
-      <span class="font-bold text-gray-700 text-xs">1. Monthly Cash Flow (Billed vs. Costs vs. Contracts)</span>
-      <Info description="Compares actual invoices billed (Xero), job costs (Procore), and booked contracts (HubSpot)." />
+      <span class="font-bold text-gray-700 text-xs">Monthly Cash Flow (Billed vs. Costs vs. Gross Profit)</span>
+      <Info description="Compares actual invoices billed (Xero), job costs (Procore), and resulting gross profit." />
     </div>
     <Chart
         data={monthly_cash_flow}
@@ -527,7 +537,7 @@ order by avg_days desc
         sort=false
         xType=category
         yFmt="[>=1000000]$#,##0.0,,\M;[>=1000]$#,##0,\K;$#,##0"
-        colorPalette={['#1D5F60', '#B45309', '#7B8DA6']}
+        colorPalette={['#1D5F60', '#B45309', '#0d9488']}
         height={185}
         legend=true
         echartsOptions={{
@@ -556,14 +566,14 @@ order by avg_days desc
     >
       <Bar y=billed_revenue name="Billed Revenue (Xero)" />
       <Bar y=job_costs name="Job Costs (Procore)" />
-      <Line y=booked_contracts name="Booked Contracts (HubSpot)" />
+      <Line y=gross_profit name="Gross Profit (Realized)" />
     </Chart>
   </div>
 
   <!-- Graph 2: Margin Fade -->
   <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
     <div class="flex items-center gap-1.5 mb-1">
-      <span class="font-bold text-gray-700 text-xs">2. Margin Fade (Sold vs. Actual Margin)</span>
+      <span class="font-bold text-gray-700 text-xs">Margin Fade (Sold vs. Actual Margin)</span>
       <Info description="Measures sold contract margin % (HubSpot) vs actual realized margin % (Procore & Xero)." />
     </div>
     <Chart
@@ -571,14 +581,17 @@ order by avg_days desc
         x=month_date
         sort=false
         xType=category
-        yMin={0.25}
-        yMax={0.60}
         yFmt="pct1"
-        colorPalette={['#7B8DA6', '#1D5F60']}
+        colorPalette={['#7B8DA6', '#0d9488']}
         height={185}
         legend=true
         echartsOptions={{
             grid: { left: 40, right: 20, top: 25, bottom: 25, containLabel: true },
+            yAxis: { scale: true },
+            series: [
+                { lineStyle: { type: 'dashed', width: 2 } },
+                { lineStyle: { type: 'solid', width: 2.5 } }
+            ],
             xAxis: [{ axisLabel: {
                 fontSize: 9,
                 width: 200,
@@ -605,8 +618,8 @@ order by avg_days desc
   <!-- Graph 3: Revenue Forecast -->
   <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
     <div class="flex items-center gap-1.5 mb-1">
-      <span class="font-bold text-gray-700 text-xs">3. Revenue Forecast (Pipeline + WIP Schedule)</span>
-      <Info description="Combines HubSpot weighted open pipeline with Procore active WIP billing schedules." />
+      <span class="font-bold text-gray-700 text-xs">Forward Demand & Backlog (Pipeline vs. WIP Schedule)</span>
+      <Info description="Compares HubSpot open pipeline demand against Procore active unbilled delivery backlog." />
     </div>
     <Chart
         data={revenue_forecast_chart}
@@ -646,7 +659,7 @@ order by avg_days desc
   <!-- Graph 4: Lead to Cash Cycle Time -->
   <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
     <div class="flex items-center gap-1.5 mb-1">
-      <span class="font-bold text-gray-700 text-xs">4. Lead to Cash Cycle Time (Days)</span>
+      <span class="font-bold text-gray-700 text-xs">Lead to Cash Cycle Time (Days)</span>
       <Info description="Average days elapsed from HubSpot lead creation to final Xero invoice payment." />
     </div>
     <BarChart

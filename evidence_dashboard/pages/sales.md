@@ -122,17 +122,6 @@ title: "Sales & Win-Loss Analysis"
     padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; /* Top: 12px, Bottom: 20px buffer */
   }
 
-  /* Title text color override so it is readable on deep background */
-  :global(.text-\[\#264773\]) {
-    color: #0d9488 !important;
-  }
-
-  /* Active Tab button styling matching teal accent */
-  :global(button.bg-\[\#264773\]) {
-    background-color: #0d9488 !important;
-    color: #ffffff !important;
-  }
-
   /* Thin white border outline for all cards */
   :global(.bg-white) {
     outline: 1px solid rgba(255, 255, 255, 0.35) !important;
@@ -307,14 +296,14 @@ order by pipeline_value desc
 
 <div class="flex gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
   <button on:click={() => goto(buildNavUrl('/overview'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Overview Cockpit</button>
-  <button on:click={() => goto(buildNavUrl('/sales'))} class="px-3 py-1 rounded bg-[#264773] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Sales & Win-Loss</button>
+  <button on:click={() => goto(buildNavUrl('/sales'))} class="px-3 py-1 rounded bg-[#0d9488] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Sales & Win-Loss</button>
   <button on:click={() => goto(buildNavUrl('/operations'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Operations & Vendors</button>
 </div>
 
 <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
   <!-- Left Side: Title & Filter Controls -->
   <div class="flex flex-col gap-2">
-    <div class="text-base font-extrabold text-[#264773]">Sales Pipeline Deep-Dive</div>
+    <div class="text-base font-extrabold text-[#0d9488]">Sales Pipeline Deep-Dive</div>
     
     <!-- Dynamic 3 Slicers: Date Range, Business Unit, Region -->
     <div class="flex flex-wrap items-start gap-3">
