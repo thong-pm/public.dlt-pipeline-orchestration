@@ -9,3 +9,5 @@ sources:
         description: "Shopify product catalogue."
       - name: products__variants
         description: "Shopify product variant records (child table of products)."
+      - name: orders
+        description: "Shopify customer orders."

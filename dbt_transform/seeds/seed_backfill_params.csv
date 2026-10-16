@@ -1,0 +1,37 @@
+month_num,business_unit_id,business_unit,season_factor,annual_growth_rate,target_gross_margin,bu_weight,noise_amplitude
+1,1,Commercial Construction,0.78,0.16,0.47,1.40,0.08
+2,1,Commercial Construction,0.82,0.16,0.47,1.40,0.08
+3,1,Commercial Construction,1.15,0.16,0.47,1.40,0.08
+4,1,Commercial Construction,1.25,0.16,0.47,1.40,0.08
+5,1,Commercial Construction,1.30,0.16,0.47,1.40,0.08
+6,1,Commercial Construction,1.35,0.16,0.47,1.40,0.08
+7,1,Commercial Construction,1.10,0.16,0.47,1.40,0.08
+8,1,Commercial Construction,0.88,0.16,0.47,1.40,0.08
+9,1,Commercial Construction,1.22,0.16,0.47,1.40,0.08
+10,1,Commercial Construction,1.28,0.16,0.47,1.40,0.08
+11,1,Commercial Construction,1.18,0.16,0.47,1.40,0.08
+12,1,Commercial Construction,0.85,0.16,0.47,1.40,0.08
+1,2,Residential Joinery,0.78,0.16,0.43,0.85,0.08
+2,2,Residential Joinery,0.82,0.16,0.43,0.85,0.08
+3,2,Residential Joinery,1.15,0.16,0.43,0.85,0.08
+4,2,Residential Joinery,1.25,0.16,0.43,0.85,0.08
+5,2,Residential Joinery,1.30,0.16,0.43,0.85,0.08
+6,2,Residential Joinery,1.35,0.16,0.43,0.85,0.08
+7,2,Residential Joinery,1.10,0.16,0.43,0.85,0.08
+8,2,Residential Joinery,0.88,0.16,0.43,0.85,0.08
+9,2,Residential Joinery,1.22,0.16,0.43,0.85,0.08
+10,2,Residential Joinery,1.28,0.16,0.43,0.85,0.08
+11,2,Residential Joinery,1.18,0.16,0.43,0.85,0.08
+12,2,Residential Joinery,0.85,0.16,0.43,0.85,0.08
+1,3,Fitouts & Retail,0.78,0.16,0.45,1.10,0.08
+2,3,Fitouts & Retail,0.82,0.16,0.45,1.10,0.08
+3,3,Fitouts & Retail,1.15,0.16,0.45,1.10,0.08
+4,3,Fitouts & Retail,1.25,0.16,0.45,1.10,0.08
+5,3,Fitouts & Retail,1.30,0.16,0.45,1.10,0.08
+6,3,Fitouts & Retail,1.35,0.16,0.45,1.10,0.08
+7,3,Fitouts & Retail,1.10,0.16,0.45,1.10,0.08
+8,3,Fitouts & Retail,0.88,0.16,0.45,1.10,0.08
+9,3,Fitouts & Retail,1.22,0.16,0.45,1.10,0.08
+10,3,Fitouts & Retail,1.28,0.16,0.45,1.10,0.08
+11,3,Fitouts & Retail,1.18,0.16,0.45,1.10,0.08
+12,3,Fitouts & Retail,0.85,0.16,0.45,1.10,0.08

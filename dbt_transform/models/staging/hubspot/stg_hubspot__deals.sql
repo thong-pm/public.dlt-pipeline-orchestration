@@ -11,7 +11,8 @@ with source as (
         'closed_won_reason': dbt.type_string(),
         'closedate': dbt.type_string(),
         'probability': dbt.type_numeric(),
-        'hs_forecast_amount': dbt.type_numeric()
+        'hs_forecast_amount': dbt.type_numeric(),
+        'hs_cost_of_goods_sold': dbt.type_numeric()
     }) }}
 ),
 
@@ -28,7 +29,8 @@ renamed as (
         closed_won_reason,
         closedate as closed_at,
         cast(probability as {{ dbt.type_numeric() }}) as probability,
-        cast(hs_forecast_amount as {{ dbt.type_numeric() }}) as forecast_amount
+        cast(hs_forecast_amount as {{ dbt.type_numeric() }}) as forecast_amount,
+        cast(hs_cost_of_goods_sold as {{ dbt.type_numeric() }}) as cost_of_goods_sold
     from source
 )
 

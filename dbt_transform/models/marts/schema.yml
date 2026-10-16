@@ -18,6 +18,7 @@ models:
       - name: contact_status
       - name: golden_source
         description: "The primary source system this record was consolidated from."
+
   - name: fct_revenue
     description: "Grain-level billing and CRM sales revenue transactions."
     columns:
@@ -32,6 +33,13 @@ models:
           - not_null
       - name: source_system
         description: "Source SaaS platform (HubSpot, Xero, Shopify, Procore)"
+      - name: data_origin
+        description: "Provenance flag: api_native, api_loaded_csv, or backfill."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['api_native', 'api_loaded_csv', 'backfill']
       - name: transaction_date
       - name: currency_code
       - name: transaction_year
@@ -39,6 +47,7 @@ models:
       - name: transaction_quarter
       - name: customer_email
       - name: customer_key
+
   - name: fct_pipeline
     description: "Sales pipeline opportunities sourced from HubSpot CRM."
     columns:
@@ -56,6 +65,7 @@ models:
       - name: closed_won_reason
       - name: customer_email
       - name: customer_key
+
   - name: dim_projects
     description: "Operational and construction projects consolidated from Procore."
     columns:
@@ -69,8 +79,16 @@ models:
       - name: project_number
       - name: company_id
       - name: company_name
+      - name: data_origin
+        description: "Provenance flag: api_loaded_csv or backfill."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['api_loaded_csv', 'backfill']
       - name: created_at
       - name: updated_at
+
   - name: dim_products
     description: "Shopify product catalog, inventory and variant pricing analytics."
     columns:
@@ -87,3 +105,20 @@ models:
       - name: price
       - name: grams
       - name: is_taxable
+
+  - name: fct_executive_cockpit
+    description: "Executive monthly performance cockpit aggregating revenue actuals, CRM pipeline, and project delivery."
+    columns:
+      - name: executive_cockpit_key
+        tests:
+          - unique
+          - not_null
+      - name: month_date
+        tests:
+          - not_null
+      - name: business_unit
+        tests:
+          - not_null
+      - name: region
+        tests:
+          - not_null

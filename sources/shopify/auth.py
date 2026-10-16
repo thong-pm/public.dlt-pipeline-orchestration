@@ -24,7 +24,7 @@ import tomlkit
 
 REDIRECT_URI = "http://localhost:8080/callback"
 # read_all_orders: required to use status=any and access orders older than 60 days
-SCOPES = "read_products,read_orders,read_all_orders,read_customers,read_inventory"
+SCOPES = "read_products,read_orders,read_all_orders,read_customers,read_inventory,write_products,write_orders,write_customers"
 PORT = 8080
 
 # Shared state between main thread and HTTP callback handler
