@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'evidence_dashboard/**'
+      - 'deploy/**'
+      - 'scripts/**'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +33,16 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           export_environment_variables: true
 
+      - name: Verify Backend Health Check
+        run: |
+          echo "=== Verifying AI Backend Proxy Health ==="
+          BACKEND_URL=$(grep -oE "https://[^']+" evidence_dashboard/components/CockpitDiagnosticAiCard.svelte | head -n 1 || echo "")
+          if [ -n "$BACKEND_URL" ]; then
+            BASE_URL=$(echo "$BACKEND_URL" | sed 's|/chat$||')
+            echo "Pinging ${BASE_URL}/health..."
+            curl -f -s --max-time 10 "${BASE_URL}/health" || echo "⚠️ Warning: Backend health check timed out or unreachable. Dashboard will fall back to preset caches."
+          fi
+
       - name: Install Dependencies
         run: |
           cd evidence_dashboard
@@ -44,6 +56,10 @@ jobs:
           printf "\ndeployment:\n  basePath: /${{ github.event.repository.name }}\n" >> evidence.config.yaml
           npm run sources
           npm run build
+          if [ ! -f "build/overview/index.html" ]; then
+            echo "❌ FATAL: build/overview/index.html was not generated. Prerender failed!"
+            exit 1
+          fi
 
       - name: Create .nojekyll file
         run: touch evidence_dashboard/build/.nojekyll

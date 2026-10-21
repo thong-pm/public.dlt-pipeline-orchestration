@@ -38,3 +38,5 @@ node_modules/
 # Agent rules
 agent.md
 AGENTS.md
+.agents/
+.agent/

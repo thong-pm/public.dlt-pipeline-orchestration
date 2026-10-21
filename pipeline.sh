@@ -36,20 +36,35 @@ GCLOUD=$(read_secret "gcp.gcloud_bin" "gcloud")
 show_help() {
   cat << 'HELP'
 ======================================================================
- 🚀 Pipeline CLI: Multi-Environment Workflow Manager
+  Pipeline CLI: Multi-Environment Workflow Manager
 ======================================================================
-Usage: bash pipeline.sh <command> [options]
+Usage: bash pipeline.sh <command> [target] [options]
 
 Commands:
-  dev                   Full local ETL (dlt + dbt -> Postgres)
+  run <dev|prod>        Execute pipeline
+                        dev  : Full local ELT (APIs -> Postgres -> dbt)
+                        prod : Trigger remote Cloud Run Job on GCP
+
   dbt <dev|prod> [args] Run dbt models against chosen target
-  dashboard <dev|prod>  Launch Evidence dashboard (dev=Postgres, prod=BigQuery)
-    --build             Build static site instead of launching dev server
-  prod                  Trigger Cloud Run Job on GCP
-  deploy                Build Docker image and update Cloud Run Job
-  auth                  Re-authorize OAuth 2.0 tokens
-  cloud                 Cloud Run entrypoint (used by Dockerfile CMD)
+                        Pass standard dbt flags (e.g. --select)
+
+  dashboard <dev|prod>  Launch Evidence.dev BI dashboard
+                        dev  : Connected to Local Postgres
+                        prod : Connected to Google BigQuery
+                        --build : Compile static production bundle
+
+  deploy <target>       Deploy system components to GCP
+                        job       : Build Docker image & update Cloud Run Job
+                        dashboard : Deploy AI backend, sync BigQuery & verify
+                        all       : Deploy both job and dashboard
+
+  auth                  Re-authorize SaaS OAuth tokens & sync to GCS
   help                  Show this help
+
+Aliases:
+  dev                   Alias for 'run dev'
+  prod                  Alias for 'run prod'
+  deploy-all            Alias for 'deploy dashboard'
 ======================================================================
 HELP
 }
@@ -91,41 +106,156 @@ EOF
   fi
 }
 
+run_local_pipeline() {
+  echo "======================================================================"
+  echo " 🛠️  RUNNING LOCAL PIPELINE (DEV ENV -> POSTGRES)"
+  echo "======================================================================"
+  export PIPELINE__DESTINATION="postgres"
+  export GCS_TOKEN_BUCKET="$BUCKET"
+  export FORCE_DOWNLOAD_SECRETS="true"
+  export_pg_env
+
+  echo ""
+  echo "=== Step 1: Running Extract & Load (dlt) ==="
+  $PYTHON_CMD -m runners.run_all
+
+  echo ""
+  echo "=== Step 2: Running dbt Transform & Test (target: dev) ==="
+  cd "$PROJECT_ROOT/dbt_transform"
+  $DBT_CMD deps --profiles-dir .
+  $DBT_CMD seed --profiles-dir . --target dev
+  $DBT_CMD run --profiles-dir . --target dev
+  $DBT_CMD test --profiles-dir . --target dev
+
+  echo ""
+  echo "======================================================================"
+  echo " ✅ LOCAL DEV PIPELINE COMPLETED SUCCESSFULLY"
+  echo "======================================================================"
+}
+
+run_remote_pipeline() {
+  if [ -z "$PROJECT" ] || [ -z "$BUCKET" ]; then
+    echo "❌ Error: GCP configuration missing in .dlt/secrets.toml."
+    exit 1
+  fi
+
+  echo "======================================================================"
+  echo " ☁️  TRIGGERING PRODUCTION PIPELINE (CLOUD RUN -> BIGQUERY)"
+  echo "======================================================================"
+  echo "Executing Cloud Run Job: $JOB (Project: $PROJECT, Region: $REGION)..."
+
+  $GCLOUD run jobs execute "$JOB" \
+    --region "$REGION" \
+    --project "$PROJECT" \
+    --async
+
+  echo ""
+  echo "======================================================================"
+  echo " 🚀 CLOUD RUN JOB TRIGGERED SUCCESSFULLY"
+  echo " You can view live progress in Cloud Console or run:"
+  echo " gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"$JOB\"' --limit 30"
+  echo "======================================================================"
+}
+
+deploy_job() {
+  if [ -z "$PROJECT" ] || [ -z "$BUCKET" ]; then
+    echo "❌ Error: GCP configuration missing in .dlt/secrets.toml."
+    exit 1
+  fi
+
+  IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/dlt-pipeline/pipeline"
+
+  echo "======================================================================"
+  echo " 🚀 DEPLOYING INGESTION PIPELINE TO GCP CLOUD RUN"
+  echo "======================================================================"
+
+  echo ""
+  echo "=== Step 1: Merging and Deploying secrets.toml to GCS ==="
+  $PYTHON_CMD scripts/deploy_secrets.py
+
+  echo ""
+  echo "=== Step 2: Build & Push image via Cloud Build ==="
+  $GCLOUD builds submit \
+    --tag "$IMAGE" \
+    --project "$PROJECT" \
+    --timeout=600
+
+  echo ""
+  echo "=== Step 3: Update Cloud Run Job to latest image ==="
+  $GCLOUD run jobs update "$JOB" \
+    --image "$IMAGE" \
+    --region "$REGION" \
+    --project "$PROJECT" \
+    --update-env-vars "GCS_TOKEN_BUCKET=$BUCKET"
+
+  echo ""
+  echo "======================================================================"
+  echo " ✅ INGESTION JOB DEPLOYED SUCCESSFULLY"
+  echo "======================================================================"
+}
+
+deploy_dashboard() {
+  bash "$PROJECT_ROOT/deploy/deploy_all.sh" "$@"
+}
+
 COMMAND="${1:-help}"
 
 case "$COMMAND" in
-  auth)
-    echo "======================================================================"
-    echo " 🔑 RUNNING INTERACTIVE OAUTH 2.0 RE-AUTHORIZATION"
-    echo "======================================================================"
-    $PYTHON_CMD scripts/fix_auth.py
+  run)
+    TARGET="${2:-dev}"
+    case "$TARGET" in
+      dev)
+        run_local_pipeline
+        ;;
+      prod)
+        run_remote_pipeline
+        ;;
+      *)
+        echo "❌ Error: Invalid target '$TARGET'. Use 'bash pipeline.sh run <dev|prod>'."
+        exit 1
+        ;;
+    esac
+    ;;
+
+  deploy)
+    TARGET="${2:-}"
+    shift || true
+    if [ -n "${1:-}" ]; then shift; fi
+    case "$TARGET" in
+      job|ingestion)
+        deploy_job
+        ;;
+      dashboard|cockpit)
+        deploy_dashboard "$@"
+        ;;
+      all)
+        echo "=== [1/2] Deploying Cloud Run Ingestion Job ==="
+        deploy_job
+        echo ""
+        echo "=== [2/2] Deploying AI Copilot Backend & Verifying Dashboard ==="
+        deploy_dashboard "$@"
+        ;;
+      *)
+        echo "Select component to deploy:"
+        echo "  bash pipeline.sh deploy job        # Ingestion Cloud Run Job"
+        echo "  bash pipeline.sh deploy dashboard  # AI Backend + BigQuery Marts + Site"
+        echo "  bash pipeline.sh deploy all        # Both components in sequence"
+        exit 1
+        ;;
+    esac
     ;;
 
   dev)
-    echo "======================================================================"
-    echo " 🛠️  RUNNING LOCAL PIPELINE (DEV ENV -> POSTGRES)"
-    echo "======================================================================"
-    export PIPELINE__DESTINATION="postgres"
-    export GCS_TOKEN_BUCKET="$BUCKET"
-    export FORCE_DOWNLOAD_SECRETS="true"
-    export_pg_env
+    run_local_pipeline
+    ;;
 
-    echo ""
-    echo "=== Step 1: Running Extract & Load (dlt) ==="
-    $PYTHON_CMD -m runners.run_all
+  prod)
+    run_remote_pipeline
+    ;;
 
-    echo ""
-    echo "=== Step 2: Running dbt Transform & Test (target: dev) ==="
-    cd "$PROJECT_ROOT/dbt_transform"
-    $DBT_CMD deps --profiles-dir .
-    $DBT_CMD seed --profiles-dir . --target dev
-    $DBT_CMD run --profiles-dir . --target dev
-    $DBT_CMD test --profiles-dir . --target dev
-
-    echo ""
-    echo "======================================================================"
-    echo " ✅ LOCAL DEV PIPELINE COMPLETED SUCCESSFULLY"
-    echo "======================================================================"
+  deploy-all)
+    shift || true
+    deploy_dashboard "$@"
     ;;
 
   dbt)
@@ -164,7 +294,7 @@ case "$COMMAND" in
     fi
 
     echo "======================================================================"
-    echo " 📊 BUILDING & PREVIEWING EVIDENCE DASHBOARD (TARGET: $TARGET)"
+    echo " 📊 LAUNCHING EVIDENCE DASHBOARD (TARGET: $TARGET)"
     echo "======================================================================"
 
     if [ "$TARGET" = "dev" ]; then
@@ -177,13 +307,25 @@ case "$COMMAND" in
     generate_evidence_connection "$TARGET"
 
     cd "$PROJECT_ROOT/evidence_dashboard"
-    npm run sources
-    npm run build
-    npm run preview
+
+    if [ "${3:-}" = "--build" ]; then
+      npm run sources
+      npm run build
+      npm run preview
+    else
+      npm run dev
+    fi
+    ;;
+
+  auth)
+    echo "======================================================================"
+    echo " 🔑 RUNNING INTERACTIVE OAUTH 2.0 RE-AUTHORIZATION"
+    echo "======================================================================"
+    $PYTHON_CMD scripts/fix_auth.py
     ;;
 
   cloud)
-    # Docker/Cloud Run entrypoint — replaces run.sh
+    # Docker/Cloud Run entrypoint (used by container CMD)
     DBT_TARGET="dev"
     if [ "${PIPELINE__DESTINATION:-postgres}" = "bigquery" ]; then
       DBT_TARGET="prod"
@@ -208,6 +350,11 @@ case "$COMMAND" in
     $DBT_CMD test --profiles-dir . --target "$DBT_TARGET" 2>&1 | tee -a "$LOG_FILE"
     DBT_TEST_EXIT_CODE=${PIPESTATUS[0]}
 
+    if [ $DBT_TEST_EXIT_CODE -eq 0 ]; then
+      echo "=== Pre-warming Diagnostic Copilot AI Cache ===" | tee -a "$LOG_FILE"
+      $PYTHON_CMD scripts/warm_copilot_cache.py 2>&1 | tee -a "$LOG_FILE" || true
+    fi
+
     cd "$PROJECT_ROOT"
     $PYTHON_CMD -m utils.slack_notifier \
       --dlt-code "$DLT_EXIT_CODE" \
@@ -222,67 +369,6 @@ case "$COMMAND" in
       echo "=== Pipeline Execution Completed Successfully ==="
       exit 0
     fi
-    ;;
-
-  prod)
-    if [ -z "$PROJECT" ] || [ -z "$BUCKET" ]; then
-      echo "❌ Error: GCP configuration missing in .dlt/secrets.toml."
-      exit 1
-    fi
-
-    echo "======================================================================"
-    echo " ☁️  TRIGGERING PRODUCTION PIPELINE (CLOUD RUN -> BIGQUERY)"
-    echo "======================================================================"
-    echo "Executing Cloud Run Job: $JOB (Project: $PROJECT, Region: $REGION)..."
-
-    $GCLOUD run jobs execute "$JOB" \
-      --region "$REGION" \
-      --project "$PROJECT" \
-      --async
-
-    echo ""
-    echo "======================================================================"
-    echo " 🚀 CLOUD RUN JOB TRIGGERED SUCCESSFULLY"
-    echo " You can view live progress in Cloud Console or run:"
-    echo " gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"$JOB\"' --limit 30"
-    echo "======================================================================"
-    ;;
-
-  deploy)
-    if [ -z "$PROJECT" ] || [ -z "$BUCKET" ]; then
-      echo "❌ Error: GCP configuration missing in .dlt/secrets.toml."
-      exit 1
-    fi
-
-    IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/dlt-pipeline/pipeline"
-
-    echo "======================================================================"
-    echo " 🚀 DEPLOYING PIPELINE TO GCP CLOUD RUN"
-    echo "======================================================================"
-
-    echo ""
-    echo "=== Step 1: Merging and Deploying secrets.toml to GCS ==="
-    $PYTHON_CMD scripts/deploy_secrets.py
-
-    echo ""
-    echo "=== Step 2: Build & Push image via Cloud Build ==="
-    $GCLOUD builds submit \
-      --tag "$IMAGE" \
-      --project "$PROJECT" \
-      --timeout=600
-
-    echo ""
-    echo "=== Step 3: Update Cloud Run Job to latest image ==="
-    $GCLOUD run jobs update "$JOB" \
-      --image "$IMAGE" \
-      --region "$REGION" \
-      --project "$PROJECT" \
-      --update-env-vars "GCS_TOKEN_BUCKET=$BUCKET"
-
-    echo ""
-    echo "======================================================================"
-    echo " ✅ BUILD & DEPLOY DONE"
-    echo "======================================================================"
     ;;
 
   help|--help|-h|*)

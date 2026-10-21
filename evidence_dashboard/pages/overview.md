@@ -4,6 +4,7 @@ title: "Executive Cockpit Dashboard"
 
 <script>
   import { goto } from '$app/navigation';
+  import DemoDisclaimer from '$lib/DemoDisclaimer.svelte';
   const DASHBOARD_DAY = '2026-06-15';
 
   function formatDate(date) {
@@ -101,6 +102,14 @@ title: "Executive Cockpit Dashboard"
   :global(.query-viewer) { display: none !important; }
   :global([class*="QueryViewer"]) { display: none !important; }
   :global(main > div:has(button[aria-label*="sql" i])) { display: none !important; }
+  :global(.over-container), :global([class*="over-container"]) {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
 
   :global(body) { 
     background-color: #05070b !important; 
@@ -375,7 +384,10 @@ order by avg_days desc
 <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
   <!-- Left Side: Title & Slicers -->
   <div class="flex flex-col gap-2">
-    <div class="text-base font-extrabold text-[#0d9488]">Executive Cockpit Dashboard</div>
+    <div class="flex items-center gap-1.5">
+      <span class="text-base font-extrabold text-[#0d9488]">Executive Cockpit Dashboard</span>
+      <DemoDisclaimer title="Executive Cockpit Dashboard" description="High-level financial, pipeline, and operational health metrics consolidated across ERP, CRM, and PM systems." />
+    </div>
     
     <!-- Dynamic 3 Slicers: Date Range, Business Unit, Region -->
     <div class="flex flex-wrap items-start gap-3">
@@ -397,35 +409,12 @@ order by avg_days desc
     
     <div style="color: #ffffff;" class="text-[8px] font-semibold bg-white/10 border border-white/20 px-2.5 py-1 rounded self-start flex items-center gap-1.5 flex-wrap">
       <span>Snapshot: June 2026</span>
-      <span class="text-white/40">|</span>
-      <span>Live APIs: HubSpot, Xero, Procore, Shopify</span>
-      <span class="text-white/40">|</span>
-      <span>Backfill share: <Value data={cockpit_summary} column=backfill_share_pct fmt="pct1" /></span>
     </div>
   </div>
 
-  <!-- Right Side: Three Cross-System Diagnostic Health Flags -->
+  <!-- Right Side: Interactive AI Diagnostic Copilot Card -->
   <div class="flex flex-col items-end self-stretch md:self-auto">
-    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[360px] min-h-[80px] flex flex-col justify-between text-[9px]">
-      <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center justify-between">
-        <span class="flex items-center gap-1"><span>🛡️</span> Cross-System Diagnostic Flags</span>
-        <span class="text-[8px] text-[#0d9488] font-bold">3 Signals Active</span>
-      </div>
-      <div class="flex flex-col gap-1 text-gray-600 leading-tight mt-1">
-        <div class="flex items-start gap-1">
-          <span class="text-amber-600 font-bold">⚠️</span>
-          <span><strong>Xero Overdue AR:</strong> <Value data={cockpit_summary} column=overdue_invoices_count /> invoice (<Value data={cockpit_summary} column=total_ar_overdue fmt=usd />) pending collection.</span>
-        </div>
-        <div class="flex items-start gap-1">
-          <span class="text-amber-600 font-bold">⚠️</span>
-          <span><strong>HubSpot Stalled Deals:</strong> <Value data={cockpit_summary} column=stalled_deals_count /> deals (<Value data={cockpit_summary} column=stalled_deals_amount fmt=usd />) stalled past close date.</span>
-        </div>
-        <div class="flex items-start gap-1">
-          <span class="text-[#264773] font-bold">📋</span>
-          <span><strong>Procore Delivery Backlog:</strong> <Value data={cockpit_summary} column=wip_value fmt=usd /> active unbilled contract work.</span>
-        </div>
-      </div>
-    </div>
+    <CockpitDiagnosticAiCard summaryData={cockpit_summary} pageName="Executive Overview" />
   </div>
 </div>
 

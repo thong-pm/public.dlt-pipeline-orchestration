@@ -52,14 +52,14 @@ const config = {
     kit: {
         prerender: {
             crawl: true,
-            // allow prerender to continue on reasonable 404/5xx responses encountered while crawling dynamic routes
-            handleHttpError: ({ status, path }) => {
-                // skip pages that return 404 or server errors during prerender crawl
-                if (status === 404 || status >= 500) {
-                    console.warn(`Prerender: skipping ${path} (status ${status})`);
-                    return 'continue';
+            handleHttpError: ({ status, path, message }) => {
+                // Fail immediately on fatal server/SQL errors (status >= 500)
+                if (status >= 500) {
+                    console.error(`\n❌ [PRERENDER FATAL SERVER/SQL ERROR] Route ${path} failed with HTTP ${status}:\n${message}\n`);
+                    throw new Error(`Prerender failed on ${path} with status ${status}: ${message}`);
                 }
-                // otherwise use default behaviour (fail)
+                // Log warning for 404 crawling quirks and continue
+                console.warn(`[PRERENDER WARNING] Route ${path} returned ${status}`);
             }
         }
     }

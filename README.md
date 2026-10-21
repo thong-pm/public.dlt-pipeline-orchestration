@@ -89,22 +89,21 @@ cp .dlt/secrets.toml.example .dlt/secrets.toml
 All local and cloud operations are managed through `./pipeline.sh`:
 
 ```bash
-# Full Local Pipeline (Extract APIs -> Local Postgres -> Run & Test dbt)
-bash pipeline.sh dev
+# Ingestion & Modeling
+bash pipeline.sh run dev                            # Full local ELT (APIs -> Postgres -> dbt)
+bash pipeline.sh run prod                           # Trigger remote Cloud Run Job on GCP
+bash pipeline.sh dbt dev                            # Run dbt against Local Postgres (skip ingestion)
+bash pipeline.sh dbt prod                           # Validate models against BigQuery
 
-# Fast dbt Model Iteration (Skips API extraction, runs dbt in ~2s)
-bash pipeline.sh dbt dev                            # All models against Local Postgres
-bash pipeline.sh dbt dev --select fct_executive_cockpit  # Specific model
-bash pipeline.sh dbt prod                           # Validate directly against BigQuery
+# BI Dashboard (Evidence.dev)
+bash pipeline.sh dashboard dev                      # Launch dev server on Local Postgres
+bash pipeline.sh dashboard prod                     # Launch dev server on live BigQuery
 
-# Launch Evidence Dashboard
-bash pipeline.sh dashboard dev                      # Connected to Local Postgres
-bash pipeline.sh dashboard prod                     # Connected to BigQuery
-
-# Cloud Run Management (GCP)
-bash pipeline.sh auth                               # Interactive OAuth re-authorization & GCS sync
-bash pipeline.sh deploy                             # Build Docker image & update Cloud Run Job
-bash pipeline.sh prod                               # Trigger Cloud Run Job execution on GCP
+# Cloud Deployments (GCP)
+bash pipeline.sh deploy job                         # Build Docker image & update Cloud Run Job
+bash pipeline.sh deploy dashboard                   # Deploy AI Copilot, sync BigQuery & verify build
+bash pipeline.sh deploy all                         # Deploy both ingestion job and dashboard
+bash pipeline.sh auth                               # Re-authorize SaaS OAuth tokens & sync to GCS
 ```
 
 ---
@@ -132,6 +131,7 @@ Built with Evidence.dev, featuring 3 operational pages with 21 automated data qu
 * **Forward Demand & Backlog**: Weighted CRM pipeline (HubSpot) vs. unbilled delivery schedule (Procore), reactive to MTD/QTD/YTD slicers.
 * **Lead to Cash Cycle Time**: Dynamic cycle days by business unit modulated by seasonal throughput factors.
 * **Diagnostic Health Flags**: Overdue accounts receivable (Xero), stalled deals (HubSpot), and active unbilled delivery backlog (Procore).
+* **AI Copilot Diagnostic Card**: Serverless Cloud Function Gen 2 proxy using Gemini 2.5 Flash with read-only BigQuery access and pre-warmed cache for KPI drill-downs.
 
 ### 2. Sales & Win-Loss (`/sales`)
 * Deal stage conversion rates, loss reason breakdown, and top client concentration.

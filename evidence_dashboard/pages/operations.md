@@ -4,6 +4,7 @@ title: "Operations & Catalog Analytics"
 
 <script>
   import { goto } from '$app/navigation';
+  import DemoDisclaimer from '$lib/DemoDisclaimer.svelte';
   const DASHBOARD_DAY = '2026-06-15';
 
   function formatDate(date) {
@@ -81,6 +82,15 @@ title: "Operations & Catalog Analytics"
   /* Hide the default Svelte breadcrumbs / Home link at the top of the page */
   :global(main > :first-child) { display: none !important; }
   :global(.breadcrumbs), :global(.breadcrumb) { display: none !important; }
+  
+  :global(.over-container), :global([class*="over-container"]) {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
   
   /* Set global background and text colors */
   :global(body) { 
@@ -247,7 +257,10 @@ order by average_price desc
 <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
   <!-- Left Side: Title & Filter Controls -->
   <div class="flex flex-col gap-2">
-    <div class="text-base font-extrabold text-[#0d9488]">Operations & Product Catalog</div>
+    <div class="flex items-center gap-1.5">
+      <span class="text-base font-extrabold text-[#0d9488]">Operations & Product Catalog</span>
+      <DemoDisclaimer title="Operations & Product Catalog" description="Procore contract delivery, job costing margins, project progress, and Shopify product performance." />
+    </div>
     
     <!-- Dynamic 3 Slicers: Date Range, Business Unit, Region -->
     <div class="flex flex-wrap items-start gap-3">
@@ -310,7 +323,7 @@ order by average_price desc
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 mb-3.5">
   
   <!-- KPI 1: Project Completion Rate -->
-  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#1D5F60] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Project Completion Rate</span>
@@ -323,10 +336,10 @@ order by average_price desc
       </h2>
     </div>
     <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Ratio of completed jobs in date range</div>
-  </a>
+  </div>
 
   <!-- KPI 2: Active Projects -->
-  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#264773] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Ongoing Active Projects</span>
@@ -339,10 +352,10 @@ order by average_price desc
       </h2>
     </div>
     <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Active builds tracked in Procore</div>
-  </a>
+  </div>
 
   <!-- KPI 3: Average Variant Catalog Price -->
-  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Variant Pricing</span>
@@ -355,10 +368,10 @@ order by average_price desc
       </h2>
     </div>
     <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Mean price of Shopify variants</div>
-  </a>
+  </div>
 
   <!-- KPI 4: Total Variants Registered -->
-  <a href={buildNavUrl('/overview')} class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer no-underline text-inherit">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#7B8DA6] py-3 px-3.5 flex flex-col justify-between h-[120px] transition-all hover:scale-[1.01] hover:shadow-md">
     <div>
       <div class="flex justify-between items-center">
         <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Shopify Variant Count</span>
@@ -371,7 +384,7 @@ order by average_price desc
       </h2>
     </div>
     <div class="text-[9px] text-gray-400 mt-0.5 border-t border-gray-100 pt-1">Total unique variants registered</div>
-  </a>
+  </div>
 
 </div>
 
