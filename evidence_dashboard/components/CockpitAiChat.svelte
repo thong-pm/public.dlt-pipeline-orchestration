@@ -7,8 +7,6 @@
   export let pageName = 'Executive Cockpit';
 
   let isOpen = false;
-  let isConfigOpen = false;
-  let customEndpoint = '';
   let activeEndpoint = endpoint;
 
   let inputPrompt = '';
@@ -31,30 +29,15 @@
     'What is our projected revenue based on historical win rates?'
   ];
 
-  const CLOUD_FUNCTION_DEFAULT = 'https://us-central1-gcp-etl-497002.cloudfunctions.net/cockpit-ai-chat';
+  const CLOUD_FUNCTION_DEFAULT = 'https://cockpit-ai-chat-p3lkd3llha-uc.a.run.app/chat';
   const LOCAL_DEV_DEFAULT = 'http://127.0.0.1:8090/chat';
 
   onMount(() => {
     if (browser) {
-      const savedEndpoint = localStorage.getItem('cockpit_ai_endpoint');
-      if (savedEndpoint) {
-        activeEndpoint = savedEndpoint;
-      } else {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        activeEndpoint = isLocal ? LOCAL_DEV_DEFAULT : CLOUD_FUNCTION_DEFAULT;
-      }
-      customEndpoint = activeEndpoint;
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      activeEndpoint = isLocal ? LOCAL_DEV_DEFAULT : CLOUD_FUNCTION_DEFAULT;
     }
   });
-
-  function saveCustomEndpoint() {
-    if (!browser) return;
-    if (customEndpoint.trim()) {
-      activeEndpoint = customEndpoint.trim();
-      localStorage.setItem('cockpit_ai_endpoint', activeEndpoint);
-    }
-    isConfigOpen = false;
-  }
 
   function getActiveFilters() {
     if (!browser) return {};
@@ -74,6 +57,12 @@
     errorMessage = '';
     inputPrompt = '';
     isLoading = true;
+
+    // Build history payload before adding current prompt
+    const historyPayload = messages.slice(-8).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      text: m.text
+    }));
 
     messages = [
       ...messages,
@@ -95,7 +84,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: textToSend,
-          context
+          context,
+          history: historyPayload
         })
       });
 
@@ -188,18 +178,6 @@
             <div class="text-[10px] text-gray-400">Grounded BigQuery + Gemini Free Tier</div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button
-            on:click={() => (isConfigOpen = !isConfigOpen)}
-            class="text-gray-400 hover:text-white p-1 rounded transition"
-            title="Configure Proxy Endpoint"
-            aria-label="Configure Endpoint"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
           <button
             on:click={() => (isOpen = false)}
             class="text-gray-400 hover:text-white p-1 rounded transition"
@@ -212,28 +190,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Config Panel (collapsible) -->
-      {#if isConfigOpen}
-        <div class="bg-[#131d31] p-3 border-b border-[#1e293b]">
-          <div class="text-[11px] font-semibold text-gray-300 mb-1">AI Proxy Endpoint:</div>
-          <div class="flex gap-2">
-            <input
-              type="text"
-              bind:value={customEndpoint}
-              placeholder="http://127.0.0.1:8080/chat"
-              class="flex-1 bg-[#090d16] border border-[#1e293b] rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-[#0d9488]"
-            />
-            <button
-              on:click={saveCustomEndpoint}
-              class="bg-[#0d9488] hover:bg-[#0f766e] text-white px-2.5 py-1 rounded text-[11px] font-medium"
-            >
-              Save
-            </button>
-          </div>
-          <div class="text-[10px] text-gray-400 mt-1">Use local proxy or GCP Cloud Function URL.</div>
-        </div>
-      {/if}
 
       <!-- Session Allowance Banner -->
       <div class="bg-[#090e18] px-3 py-1.5 border-b border-[#1e293b] flex items-center justify-between text-[10px] text-gray-400">
@@ -264,7 +220,7 @@
         {#if isLoading}
           <div class="flex items-center gap-2 bg-[#151f32] text-gray-400 p-2 rounded-lg border border-[#1e293b] max-w-[70%]">
             <div class="w-2 h-2 rounded-full bg-[#0d9488] animate-ping"></div>
-            <span class="text-[11px]">Querying BigQuery and Gemini...</span>
+            <span class="text-[11px]">Analyzing question...</span>
           </div>
         {/if}
 

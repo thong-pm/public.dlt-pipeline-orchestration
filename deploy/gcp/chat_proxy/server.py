@@ -64,8 +64,9 @@ class ChatProxyRequestHandler(BaseHTTPRequestHandler):
 
         client_ip = self.headers.get("X-Forwarded-For") or self.client_address[0]
         context = body.get("context") or {}
+        history = body.get("history") or []
 
-        status_code, response_payload = process_chat_query(prompt, context, client_ip)
+        status_code, response_payload = process_chat_query(prompt, context, client_ip, history=history)
         self._send_cors_headers(status_code)
         self.wfile.write(json.dumps(response_payload).encode("utf-8"))
 

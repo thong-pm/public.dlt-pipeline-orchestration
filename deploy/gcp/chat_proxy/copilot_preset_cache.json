@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-21T07:22:58.362540+00:00",
+  "updated_at": "2026-10-21T10:26:20.840877+00:00",
   "project_id": "gcp-etl-497002",
   "dataset_id": "dbt_prod",
   "presets": {
@@ -8,6 +8,6 @@
     "hubspot_stalled": "Top stalled deals in HubSpot past their target close date:\n1. **Corporate Office Level 12 Fitout**: $260,000 (appointmentscheduled)\n2. **Commercial Tower Lobby Panelling**: $250,890 (appointmentscheduled)\n3. **Penthouse Custom Kitchen Fitout**: $220,451 (appointmentscheduled)\n4. **Resort Beachside Joinery Contract**: $195,000 (appointmentscheduled)\n5. **Port & Philip - Pier Expansion Won**: $190,000 (closedwon)\n\n**Total Stalled Value**: $1,116,341 across 5 key opportunities. Primary blocker: decision-maker sign-off on revised scope.",
     "procore_backlog": "Unbilled project delivery backlog broken down by business unit:\n- **Commercial Construction**: $336,328 (59.3%)\n- **Fitouts & Retail**: $119,693 (21.1%)\n- **Residential Joinery**: $111,617 (19.7%)\n\n**Total Unbilled WIP Backlog**: $567,637. Active projects are tracking within agreed construction milestones.",
     "top_revenue": "Top revenue drivers across business units and product categories:\n- **Commercial Construction**: $357,755 (57.8% of total billed revenue)\n- **Residential Joinery**: $140,819 (22.8% of total billed revenue)\n- **Fitouts & Retail**: $119,948 (19.4% of total billed revenue)\n\n**Total Billed Revenue**: $618,522. Primary growth driver is commercial contract delivery across North America and EMEA.",
-    "top_wip": "Top active projects by delivery commitments and unbilled WIP:\n1. **Ridgeway University - Master Project** (Commercial Construction)\n2. **Boom FM - Master Project** (Commercial Construction)\n3. **City Limousines - Master Project** (Commercial Construction)\n4. **DIISR - Small Business Services - Master Project** (Commercial Construction)\n5. **Marine Systems - Master Project** (Commercial Construction)\n\nThese active projects represent primary operational delivery commitments in Procore."
+    "top_wip": "Top active projects by delivery commitments and unbilled WIP:\n1. **Standard Project Template** (Foster Procore)\n2. **Sandbox Test Project** (Foster Procore)\n3. **Ridgeway University - Master Project** (Commercial Construction)\n4. **Hamilton Smith Ltd - Master Project** (Residential Joinery)\n5. **Rex Media Group - Master Project** (Fitouts & Retail)\n\nThese active projects represent primary operational delivery commitments in Procore."
   }
 }

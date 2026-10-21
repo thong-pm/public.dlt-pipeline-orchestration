@@ -91,6 +91,13 @@ def get_preset_fast_path(prompt: str) -> Optional[str]:
     """Return pipeline-grounded warehouse responses for fixed copilot prompts in < 1ms."""
     p = prompt.strip().lower()
 
+    # 0. Fast-path conversational greetings
+    if p in ["hey", "hello", "hi", "hey!", "hello!", "hi!"]:
+        return (
+            "Hello! I am your Executive Cockpit Analytical AI Assistant. How can I help you analyze your "
+            "revenue, pipeline, projects, or financial performance today?"
+        )
+
     # 1. Author / Contact
     if any(k in p for k in ["contact", "author", "creator", "who made", "who built", "reach out", "hire", "email"]):
         return PRESET_CACHE_DATA.get("author") or (
@@ -100,29 +107,57 @@ def get_preset_fast_path(prompt: str) -> Optional[str]:
             "Feel free to reach out for inquiries regarding automated ELT pipelines, dbt modeling, and modern data architecture."
         )
 
-    # 2. Signal 1: Xero Overdue Invoice
+    # 2. Capabilities overview
+    if any(k in p for k in ["what can you do", "what do you do", "capabilities", "what are you capable"]):
+        return (
+            "As the Executive Cockpit Analytical AI Assistant, I help executives query and analyze data from our data warehouse (`gcp-etl-497002.dbt_prod`).\n\n"
+            "Here are the main capabilities and data domains I can assist you with:\n\n"
+            "1. **Executive Performance Cockpit** (`fct_executive_cockpit`):\n"
+            "- Review billed revenue, job costs, and gross profit amounts.\n"
+            "- Analyze realized gross margins versus sold margins and track margin fade.\n"
+            "- Monitor cash collections, net cash flow, and lead-to-cash cycle days.\n"
+            "- Track active project counts across business units ('Corporate', 'Commercial', 'Residential') and regions ('North America', 'EMEA', 'APAC').\n\n"
+            "2. **Sales Pipeline & Deals** (`fct_pipeline`):\n"
+            "- Inspect HubSpot CRM opportunities, deal stages, and total deal amounts.\n"
+            "- Review win/loss reasons and active pipeline values.\n\n"
+            "3. **Revenue & Billing** (`fct_revenue` & `seed_xero_invoices`):\n"
+            "- Analyze granular billing transactions across source systems (HubSpot, Xero, Shopify, Procore).\n"
+            "- Check accounts receivable invoice ledgers, outstanding amounts due, and payment status.\n\n"
+            "4. **Operations & Catalogs** (`dim_projects`, `dim_customers`, `dim_products`):\n"
+            "- Track operational and construction projects consolidated from Procore.\n"
+            "- Look up customer master records across HubSpot and Xero.\n"
+            "- Review Shopify product catalogs, pricing, and inventory variants.\n\n"
+            "How can I help you analyze the data today?"
+        )
+
+    # 3. Signal 1: Xero Overdue Invoice
     if ("xero" in p and "overdue" in p) or ("who owes" in p and "invoice" in p) or ("overdue invoice" in p):
         return PRESET_CACHE_DATA.get("xero_overdue")
 
-    # 3. Signal 2: HubSpot Stalled Deals
+    # 4. Signal 2: HubSpot Stalled Deals
     if ("stalled" in p and "deal" in p) or ("stalled deals" in p) or ("top 5 stalled" in p):
         return PRESET_CACHE_DATA.get("hubspot_stalled")
 
-    # 4. Signal 3: Procore WIP Backlog by BU
+    # 5. Signal 3: Procore WIP Backlog by BU
     if ("backlog" in p and "business unit" in p) or ("unbilled project delivery backlog" in p) or ("procore backlog" in p) or ("wip backlog" in p):
         return PRESET_CACHE_DATA.get("procore_backlog")
 
-    # 5. Suggested 1: Top Revenue Drivers
+    # 6. Suggested 1: Top Revenue Drivers
     if ("top revenue" in p) or ("revenue drivers" in p):
         return PRESET_CACHE_DATA.get("top_revenue")
 
-    # 6. Suggested 2: Top WIP Projects
+    # 7. Suggested 2: Top WIP Projects
     if ("highest unbilled wip" in p) or ("top wip" in p) or ("highest unbilled" in p):
         return PRESET_CACHE_DATA.get("top_wip")
 
     return None
 
-def process_chat_query(prompt: str, context: Dict[str, Any], client_ip: str) -> Tuple[int, Dict[str, Any]]:
+def process_chat_query(
+    prompt: str,
+    context: Dict[str, Any],
+    client_ip: str,
+    history: Optional[list] = None
+) -> Tuple[int, Dict[str, Any]]:
     # 1. Rate limiting check
     allowed, rate_msg, session_remaining = rate_limiter.check(client_ip)
     if not allowed:
@@ -133,6 +168,7 @@ def process_chat_query(prompt: str, context: Dict[str, Any], client_ip: str) -> 
         }
 
     # 2. Fast-path check for fixed presets (< 1ms execution)
+    # Presets are fixed, pipeline-grounded answers and ALWAYS return in < 1ms regardless of history
     preset_answer = get_preset_fast_path(prompt)
     if preset_answer:
         return 200, {
@@ -141,9 +177,11 @@ def process_chat_query(prompt: str, context: Dict[str, Any], client_ip: str) -> 
             "session_remaining": session_remaining
         }
 
-    # 3. Dynamic TTL response cache check
+    has_history = bool(history and len(history) > 0)
+
+    # 3. Dynamic TTL response cache check (only for standalone first-turn queries)
     cache_key = f"{prompt.strip().lower()}::{context.get('page','overview')}::{context.get('business_unit','All')}::{context.get('region','All')}::{context.get('time_filter','ytd')}"
-    if cache_key in RESPONSE_CACHE:
+    if not has_history and cache_key in RESPONSE_CACHE:
         cached_time, cached_payload = RESPONSE_CACHE[cache_key]
         if time.time() - cached_time < CACHE_TTL_SECONDS:
             return 200, {
@@ -160,30 +198,45 @@ def process_chat_query(prompt: str, context: Dict[str, Any], client_ip: str) -> 
         bu = context.get("business_unit", "All")
         region = context.get("region", "All")
         context_str = (
-            f"\n[Active Dashboard Context: Page={page}, "
+            f"[Dashboard Context: Page={page}, "
             f"TimeFilter={time_filter}, BusinessUnit={bu}, Region={region}, ReferenceDate=2026-06-15]\n"
         )
 
     full_user_content = f"{context_str}User question: {prompt}"
 
+    # Build Gemini history content objects
+    chat_history: list[types.Content] = []
+    if history and isinstance(history, list):
+        for item in history[-8:]:
+            if not isinstance(item, dict):
+                continue
+            raw_role = (item.get("role") or "").lower()
+            role = "user" if raw_role in ("user", "human") else "model"
+            text = (item.get("text") or item.get("content") or "").strip()
+            if text:
+                chat_history.append(types.Content(role=role, parts=[types.Part.from_text(text=text)]))
+
     # 5. Model execution with fallback
     client = get_gemini_client()
-    candidate_models = ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-1.5-flash"]
+    candidate_models = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
 
     last_error: Exception = None
     for model_name in candidate_models:
         try:
-            chat = client.chats.create(
-                model=model_name,
-                config=types.GenerateContentConfig(
+            chat_kwargs: Dict[str, Any] = {
+                "model": model_name,
+                "config": types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
                     tools=[execute_analytical_query],
-                    temperature=0.0,
-                    automatic_function_calling=types.AutomaticFunctionCallingConfig(maximum_remote_calls=5)
+                    temperature=0.0
                 )
-            )
+            }
+            if chat_history:
+                chat_kwargs["history"] = chat_history
+
+            chat = client.chats.create(**chat_kwargs)
             response = chat.send_message(full_user_content)
-            
+
             # Robust text extraction
             answer_text = getattr(response, "text", "") or ""
             if not answer_text.strip() and hasattr(response, "candidates") and response.candidates:
@@ -194,8 +247,8 @@ def process_chat_query(prompt: str, context: Dict[str, Any], client_ip: str) -> 
 
             if not answer_text.strip():
                 # Inspect chat history for latest model turn
-                history = chat.get_history()
-                for msg in reversed(history):
+                history_turns = chat.get_history()
+                for msg in reversed(history_turns):
                     if msg.role == "model":
                         texts = [p.text for p in msg.parts if hasattr(p, "text") and p.text]
                         if texts:
@@ -203,11 +256,12 @@ def process_chat_query(prompt: str, context: Dict[str, Any], client_ip: str) -> 
                             break
 
             if answer_text.strip():
-                # Save into dynamic TTL response cache
-                RESPONSE_CACHE[cache_key] = (time.time(), {
-                    "answer": answer_text.strip(),
-                    "model_used": model_name
-                })
+                # Save into dynamic TTL response cache for standalone first-turn queries
+                if not has_history:
+                    RESPONSE_CACHE[cache_key] = (time.time(), {
+                        "answer": answer_text.strip(),
+                        "model_used": model_name
+                    })
                 return 200, {
                     "answer": answer_text.strip(),
                     "model_used": model_name,
@@ -258,6 +312,7 @@ def chat_handler(request):
         return (json.dumps({"error": "Prompt exceeds maximum allowed length of 300 characters"}), 400, headers)
 
     context = data.get("context") or {}
+    history = data.get("history") or []
 
-    status_code, response_body = process_chat_query(prompt, context, client_ip)
+    status_code, response_body = process_chat_query(prompt, context, client_ip, history=history)
     return (json.dumps(response_body), status_code, headers)
