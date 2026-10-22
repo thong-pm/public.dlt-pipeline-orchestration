@@ -198,6 +198,16 @@ echo "Running: dbt test --profiles-dir . --target prod..."
 "$DBT_BIN" test --profiles-dir . --target prod
 echo "✓ BigQuery tables updated and verified against dbt test suite."
 
+echo ""
+echo "Synchronizing verified BigQuery marts into in-memory DuckDB replica..."
+"$PYTHON_BIN" "${ROOT_DIR}/scripts/export_copilot_duckdb.py"
+echo "✓ DuckDB in-memory replica synchronized."
+
+echo ""
+echo "Pre-warming copilot response cache from updated warehouse..."
+"$PYTHON_BIN" "${ROOT_DIR}/scripts/warm_copilot_cache.py"
+echo "✓ Copilot preset cache synchronized."
+
 # ------------------------------------------------------------------------------
 # STEP 3: Deploy Backend AI Copilot (Cloud Functions Gen 2)
 # ------------------------------------------------------------------------------

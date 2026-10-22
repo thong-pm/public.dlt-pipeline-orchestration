@@ -21,6 +21,11 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
     exit 1
 fi
 
+if [ ! -f "${SCRIPT_DIR}/copilot_warehouse.duckdb" ] && [ -f "${ROOT_DIR}/scripts/export_copilot_duckdb.py" ]; then
+    echo "DuckDB database missing. Exporting from BigQuery..."
+    python3 "${ROOT_DIR}/scripts/export_copilot_duckdb.py"
+fi
+
 echo "Deploying Cloud Function '${FUNCTION_NAME}' to ${PROJECT_ID} (${REGION})..."
 
 gcloud functions deploy "${FUNCTION_NAME}" \

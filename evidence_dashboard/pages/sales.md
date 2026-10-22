@@ -124,12 +124,17 @@ title: "Sales & Win-Loss Analysis"
     }
   }
   
-  /* Expand the main content to fill the screen width up to a limit and center vertically */
   :global(main) { 
     background-color: #05070b !important; 
     max-width: 1280px !important; /* Virtual Width Target */
     margin: 0 auto !important;
-    padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; /* Top: 12px, Bottom: 20px buffer */
+    padding: 0.5rem 0.75rem 1rem 0.75rem !important;
+  }
+
+  @media (min-width: 640px) {
+    :global(main) {
+      padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; /* Top: 12px, Bottom: 20px buffer */
+    }
   }
 
   /* Thin white border outline for all cards */

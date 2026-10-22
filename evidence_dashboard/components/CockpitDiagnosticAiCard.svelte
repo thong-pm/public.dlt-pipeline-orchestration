@@ -72,7 +72,12 @@
       page: pageName,
       time_filter: params.get('time_filter') || 'ytd',
       business_unit: params.get('business_unit') || 'All',
-      region: params.get('region') || 'All'
+      region: params.get('region') || 'All',
+      signals: {
+        overdue_ar: `${overdueCount} invoice (${overdueAmount})`,
+        stalled_deals: `${stalledCount} deals (${stalledAmount})`,
+        unbilled_wip: `${wipAmount}`
+      }
     };
   }
 
@@ -203,10 +208,10 @@
     <!-- Header Row -->
     <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center justify-between gap-1 w-full">
       <div class="flex items-center gap-1.5 relative flex-nowrap shrink-0">
-        <span class="text-xs">🛡️</span>
         <span class="text-gray-700 whitespace-nowrap">Diagnostic Copilot</span>
         <!-- Round AI Info Button -->
         <span
+          id="ai-privacy-info-btn"
           role="button"
           tabindex="0"
           on:click={() => (isAiInfoOpen = !isAiInfoOpen)}
@@ -236,13 +241,14 @@
           ></div>
 
           <!-- Popover Card -->
-          <div class="absolute left-0 top-6 w-[290px] bg-[#0b111e] border border-[#1e293b] rounded-xl shadow-2xl p-3 z-50 text-gray-200 text-xs normal-case tracking-normal font-normal">
+          <div class="absolute left-0 top-6 w-[315px] max-w-[calc(100vw-32px)] bg-[#0b111e] border border-[#1e293b] rounded-xl shadow-2xl p-2.5 z-50 text-gray-200 text-xs normal-case tracking-normal font-normal">
             <div class="flex items-center justify-between border-b border-[#1e293b] pb-1.5 mb-2">
-              <div class="flex items-center gap-1.5 font-bold text-white text-xs">
-                <span class="text-[#2dd4bf]">ℹ</span>
-                <span>AI Copilot & Environment</span>
+              <div class="flex items-center gap-1.5 font-bold text-white text-[11px]">
+                <span class="text-[#2dd4bf]">🛡️</span>
+                <span>AI Copilot & Privacy Disclosure</span>
               </div>
               <button
+                id="ai-privacy-close-btn"
                 type="button"
                 on:click={() => (isAiInfoOpen = false)}
                 class="text-gray-400 hover:text-white text-xs font-bold p-0.5"
@@ -253,28 +259,28 @@
               </button>
             </div>
 
-            <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
-              <div>
-                <strong class="text-white">AI Engine:</strong> Powered by <span class="text-[#2dd4bf] font-mono">Gemini 3.5 Flash Lite</span> with live BigQuery tool-calling over dbt data marts.
+            <div class="space-y-2 text-[9.5px] text-gray-300 leading-snug">
+              <!-- Privacy Section -->
+              <div class="bg-[#131d31] p-2 rounded border border-[#1e293b]">
+                <div class="font-bold text-[#2dd4bf] mb-1">Privacy & Data Storage:</div>
+                <ul class="list-disc pl-3.5 space-y-0.5 text-gray-300">
+                  <li><strong>Zero Server Logging:</strong> Queries and messages are never stored in server databases.</li>
+                  <li><strong>Local Session Only:</strong> Active chat lives only in browser <code class="text-[#2dd4bf]">sessionStorage</code> and clears on tab close.</li>
+                  <li><strong>AI Engine:</strong> Powered by <code class="text-[#2dd4bf]"> Gemini 3.5 Flash Lite</code></li>
+                </ul>
               </div>
-              <div>
-                <strong class="text-white">Dataset:</strong> Demonstration dataset consolidated across HubSpot CRM, Xero billing, Procore projects, and Shopify products.
-              </div>
-              <div class="bg-[#131d31] p-2 rounded border border-[#1e293b] text-[10px] text-gray-400 mt-1">
-                Designed as a functional proof-of-concept for automated ELT pipelines and grounded AI copilot exploration. Have fun exploring!
+
+              <!-- Scope & Limitations -->
+              <div class="bg-[#131d31] p-2 rounded border border-[#1e293b] space-y-0.5">
+                <div class="font-bold text-amber-400 mb-0.5">Scope & Limitations:</div>
+                <ul class="list-disc pl-3.5 space-y-0.5 text-gray-300">
+                  <li>Data model and volumn are grounded strictly for demo purposes.</li>
+                  <li>First query may take 2-5s to respond. Temporary downtime can occur during updates.</li>
+                </ul>
               </div>
             </div>
           </div>
         {/if}
-      </div>
-      <div class="flex items-center gap-1 shrink-0">
-        <button
-          type="button"
-          on:click={() => (isOpen = !isOpen)}
-          class="text-[8px] font-semibold px-2 py-0.5 rounded transition whitespace-nowrap cursor-pointer bg-[#0d9488] hover:bg-[#0f766e] text-white shadow-xs"
-        >
-          {isOpen ? 'Hide Conversation' : (messages.length > 0 ? `Show Conversation (${messages.length})` : 'Show Conversation')}
-        </button>
       </div>
     </div>
 
@@ -349,7 +355,7 @@
     </form>
 
     <!-- Suggested Prompts Below Chat Bar -->
-    <div class="flex items-center gap-1 pt-1 overflow-x-auto no-scrollbar">
+    <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
       <span class="text-[8px] text-gray-400 font-semibold whitespace-nowrap">Suggested:</span>
       <button
         type="button"
@@ -375,12 +381,23 @@
       >
         Contact Author
       </button>
+
+      <!-- Highlighted Show Conversation Button: Black with Yellow Text -->
+      <button
+        type="button"
+        on:click={() => (isOpen = !isOpen)}
+        class="ml-auto text-[8px] font-bold px-2 py-0.5 rounded transition whitespace-nowrap cursor-pointer bg-[#0f172a] hover:bg-black text-[#facc15] hover:text-[#fef08a] border border-[#facc15]/40 hover:border-[#facc15] shadow-xs flex items-center gap-1 shrink-0"
+        title="Toggle Conversation History"
+      >
+        <span>💬</span>
+        <span>{isOpen ? 'Hide Chat' : (messages.length > 0 ? `Show Chat (${messages.length})` : 'Show Chat')}</span>
+      </button>
     </div>
   </div>
 
-  <!-- Anchored Interactive Conversation Flyout (Opens without shifting single-screen dashboard layout) -->
+  <!-- Anchored Interactive Conversation Flyout (Responsive Bottom Modal on Mobile, Anchored Dropdown on Desktop) -->
   {#if isOpen}
-    <div class="absolute top-[calc(100%+6px)] right-0 w-[410px] h-[460px] bg-[#0b111e] border border-[#1e293b] rounded-xl shadow-2xl flex flex-col overflow-hidden text-gray-200 text-xs z-50">
+    <div class="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 bottom-3 sm:bottom-auto sm:top-[calc(100%+6px)] w-auto sm:w-[410px] h-[75vh] sm:h-[460px] max-w-[calc(100vw-24px)] sm:max-w-none bg-[#0b111e] border border-[#1e293b] rounded-xl shadow-2xl flex flex-col overflow-hidden text-gray-200 text-xs z-50">
       <!-- Flyout Header -->
       <div class="bg-[#0f172a] px-3.5 py-2.5 border-b border-[#1e293b] flex items-center justify-between">
         <div>

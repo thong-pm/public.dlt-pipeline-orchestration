@@ -13,7 +13,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from semantic_catalog import SYSTEM_INSTRUCTION
 from rate_limiter import RateLimiter
-from bq_executor import run_analytical_query
+try:
+    from duckdb_executor import run_analytical_query
+except Exception:
+    from bq_executor import run_analytical_query
 
 # Load .env file if running locally
 def load_local_env() -> None:
@@ -201,6 +204,12 @@ def process_chat_query(
             f"[Dashboard Context: Page={page}, "
             f"TimeFilter={time_filter}, BusinessUnit={bu}, Region={region}, ReferenceDate=2026-06-15]\n"
         )
+        if "signals" in context and isinstance(context["signals"], dict):
+            sig = context["signals"]
+            context_str += (
+                f"[Live Screen Signals: Overdue AR={sig.get('overdue_ar')}, "
+                f"Stalled Deals={sig.get('stalled_deals')}, Unbilled Backlog={sig.get('unbilled_wip')}]\n"
+            )
 
     full_user_content = f"{context_str}User question: {prompt}"
 
@@ -228,6 +237,7 @@ def process_chat_query(
                 "config": types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
                     tools=[execute_analytical_query],
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(maximum_remote_calls=2),
                     temperature=0.0
                 )
             }

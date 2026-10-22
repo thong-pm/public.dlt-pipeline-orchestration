@@ -125,8 +125,14 @@ title: "Executive Cockpit Dashboard"
   :global(main) { 
     background-color: #05070b !important; 
     max-width: 1280px !important; 
-    margin: 0 auto !important;
-    padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; 
+    margin: 0 auto !important; 
+    padding: 0.5rem 0.75rem 1rem 0.75rem !important; 
+  }
+
+  @media (min-width: 640px) {
+    :global(main) {
+      padding: 0.75rem 1.5rem 1.25rem 1.5rem !important; 
+    }
   }
 
   :global(.bg-white) {
@@ -375,7 +381,7 @@ order by avg_days desc
 ```
 
 <!-- Header Navigation Bar -->
-<div class="flex gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
+<div class="flex flex-wrap gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
   <button on:click={() => goto(buildNavUrl('/overview'))} class="px-3 py-1 rounded bg-[#0d9488] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Overview Cockpit</button>
   <button on:click={() => goto(buildNavUrl('/sales'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Sales & Win-Loss</button>
   <button on:click={() => goto(buildNavUrl('/operations'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Operations & Vendors</button>
@@ -401,7 +407,7 @@ order by avg_days desc
       </div>
       
       <!-- Bound dynamically to SQL queries bu_list and region_list -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <GlobalMultiSelect name="business_unit" title="Business Unit" data={bu_list} valueColumn="business_unit_id" labelColumn="business_unit" />
         <GlobalMultiSelect name="region" title="Region" data={region_list} valueColumn="region_id" labelColumn="region" />
       </div>
@@ -413,7 +419,7 @@ order by avg_days desc
   </div>
 
   <!-- Right Side: Interactive AI Diagnostic Copilot Card -->
-  <div class="flex flex-col items-end self-stretch md:self-auto">
+  <div class="flex flex-col items-stretch sm:items-end self-stretch md:self-auto w-full md:w-auto">
     <CockpitDiagnosticAiCard summaryData={cockpit_summary} pageName="Executive Overview" />
   </div>
 </div>

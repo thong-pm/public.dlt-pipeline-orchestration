@@ -58,6 +58,7 @@ Commands:
                         dashboard : Deploy AI backend, sync BigQuery & verify
                         all       : Deploy both job and dashboard
 
+  copilot               Synchronize BigQuery marts to in-memory DuckDB & warm cache
   auth                  Re-authorize SaaS OAuth tokens & sync to GCS
   help                  Show this help
 
@@ -315,6 +316,18 @@ case "$COMMAND" in
     else
       npm run dev
     fi
+    ;;
+
+  copilot)
+    echo "======================================================================"
+    echo " 🦆 SYNCHRONIZING COPILOT DUCKDB REPLICA & PRESET CACHE"
+    echo "======================================================================"
+    $PYTHON_CMD scripts/export_copilot_duckdb.py
+    $PYTHON_CMD scripts/warm_copilot_cache.py
+    echo ""
+    echo "======================================================================"
+    echo " ✅ COPILOT DATA & CACHE SYNCHRONIZED"
+    echo "======================================================================"
     ;;
 
   auth)

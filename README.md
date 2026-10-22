@@ -99,7 +99,8 @@ bash pipeline.sh dbt prod                           # Validate models against Bi
 bash pipeline.sh dashboard dev                      # Launch dev server on Local Postgres
 bash pipeline.sh dashboard prod                     # Launch dev server on live BigQuery
 
-# Cloud Deployments (GCP)
+# Cloud Deployments & AI Sync
+bash pipeline.sh copilot                            # Sync BigQuery marts to in-memory DuckDB & warm cache
 bash pipeline.sh deploy job                         # Build Docker image & update Cloud Run Job
 bash pipeline.sh deploy dashboard                   # Deploy AI Copilot, sync BigQuery & verify build
 bash pipeline.sh deploy all                         # Deploy both ingestion job and dashboard
@@ -131,7 +132,7 @@ Built with Evidence.dev, featuring 3 operational pages with 21 automated data qu
 * **Forward Demand & Backlog**: Weighted CRM pipeline (HubSpot) vs. unbilled delivery schedule (Procore), reactive to MTD/QTD/YTD slicers.
 * **Lead to Cash Cycle Time**: Dynamic cycle days by business unit modulated by seasonal throughput factors.
 * **Diagnostic Health Flags**: Overdue accounts receivable (Xero), stalled deals (HubSpot), and active unbilled delivery backlog (Procore).
-* **AI Copilot Diagnostic Card**: Serverless Cloud Function Gen 2 proxy using Gemini 2.5 Flash with read-only BigQuery access and pre-warmed cache for KPI drill-downs.
+* **AI Copilot Diagnostic Card**: Serverless Cloud Function Gen 2 proxy using Gemini 3.5 Flash Lite with in-memory DuckDB analytical querying, zero server logging, and pre-warmed cache for KPI drill-downs.
 
 ### 2. Sales & Win-Loss (`/sales`)
 * Deal stage conversion rates, loss reason breakdown, and top client concentration.
