@@ -8,7 +8,9 @@ A code-first data pipeline integrating **HubSpot**, **Xero**, **Shopify**, and *
 
 ## Operational Context
 
-### The Fictional Business
+This consolidates real-world architectures from multiple real life projects (cross-SaaS reconciliation, ephemeral token vaults, BigQuery dbt modeling, and version-controlled BI dashboard development, ...) into a single showcase project.
+
+### The Business Scenario
 A modular storage, millwork, and outdoor-structures manufacturer that sells kits online through Shopify, sells to builders and dealers through HubSpot, and installs larger orders on site.
 
 ### System Roles

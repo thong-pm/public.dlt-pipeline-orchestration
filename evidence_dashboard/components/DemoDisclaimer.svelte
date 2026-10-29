@@ -102,6 +102,7 @@
     left: 0;
     top: calc(100% + 6px);
     width: 280px;
+    max-width: calc(100vw - 32px);
     background-color: #0b111e;
     border: 1px solid #1e293b;
     border-radius: 0.75rem;

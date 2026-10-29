@@ -123,7 +123,7 @@
   <button
     type="button"
     on:click|stopPropagation={() => (open = !open)}
-    class="bg-white text-gray-700 border border-gray-300 rounded px-2.5 py-1 text-[10px] font-bold shadow-sm flex items-center justify-between gap-2 h-[26px] min-w-[180px] max-w-[260px] hover:border-[#0d9488] focus:outline-none cursor-pointer transition-colors"
+    class="bg-white text-gray-700 border border-gray-300 rounded px-2.5 py-1 text-[10px] font-bold shadow-sm flex items-center justify-between gap-2 h-[26px] min-w-[140px] sm:min-w-[180px] max-w-[260px] hover:border-[#0d9488] focus:outline-none cursor-pointer transition-colors"
   >
     <span class="truncate">{displayText}</span>
     <span class="text-gray-400 text-[8px]">▼</span>
@@ -142,7 +142,7 @@
 
     <!-- Options Dropdown Menu -->
     <div
-      class="absolute left-0 mt-1 w-60 rounded-md shadow-lg bg-white border border-gray-200 z-50 py-1 text-xs max-h-60 overflow-y-auto"
+      class="absolute left-0 mt-1 w-60 max-w-[calc(100vw-32px)] rounded-md shadow-lg bg-white border border-gray-200 z-50 py-1 text-xs max-h-60 overflow-y-auto"
     >
       <!-- All Options Button -->
       <button
