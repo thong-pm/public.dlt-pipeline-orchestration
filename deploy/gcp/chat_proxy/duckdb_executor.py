@@ -11,6 +11,13 @@ DUCKDB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "copilot_
 
 _duck_conn: Optional[duckdb.DuckDBPyConnection] = None
 
+try:
+    import sqlglot
+    from sqlglot import exp
+    HAS_SQLGLOT = True
+except ImportError:
+    HAS_SQLGLOT = False
+
 FORBIDDEN_KEYWORDS = [
     r"\bINSERT\b", r"\bUPDATE\b", r"\bDELETE\b", r"\bDROP\b",
     r"\bALTER\b", r"\bCREATE\b", r"\bTRUNCATE\b", r"\bMERGE\b",
@@ -45,9 +52,47 @@ def get_duckdb_connection() -> Optional[duckdb.DuckDBPyConnection]:
     return None
 
 def normalize_sql_for_duckdb(sql: str) -> str:
-    """Strip BigQuery project/dataset prefixes so queries run cleanly on local DuckDB tables."""
+    """Validate query AST and strip BigQuery project/dataset prefixes for DuckDB execution."""
     clean = sql.strip().rstrip(";")
 
+    if HAS_SQLGLOT:
+        try:
+            statements = sqlglot.parse(clean, read="bigquery")
+            if not statements:
+                raise ValueError("Empty or invalid SQL statement.")
+            if len(statements) > 1:
+                raise ValueError("Multiple SQL statements detected. Only a single SELECT query is permitted.")
+
+            parsed = statements[0]
+            if not isinstance(parsed, (exp.Select, exp.Union)):
+                raise ValueError("Query must start with SELECT or WITH.")
+
+            forbidden_ast_nodes = (
+                exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Alter,
+                exp.Create, exp.Merge, exp.Command, exp.Transaction
+            )
+            for node in parsed.walk():
+                if isinstance(node, forbidden_ast_nodes):
+                    raise ValueError(f"Mutation statement detected ({type(node).__name__}). Only read-only SELECT queries are permitted.")
+                if isinstance(node, (exp.Table, exp.Func, exp.Anonymous)):
+                    tbl = (node.name if hasattr(node, "name") and node.name else str(getattr(node, "this", ""))).lower()
+                    if any(f in tbl for f in ["information_schema", "sqlite_", "pg_", "duckdb_"]):
+                        raise ValueError("Exploratory metadata queries on system tables or information_schema are forbidden.")
+
+            for table in parsed.find_all(exp.Table):
+                table.set("db", None)
+                table.set("catalog", None)
+
+            if not parsed.args.get("limit"):
+                parsed = parsed.limit(50)
+
+            return parsed.sql(dialect="duckdb")
+        except ValueError:
+            raise
+        except Exception as err:
+            print(f"[AST Parser] Notice: sqlglot parse exception ({err}), falling back to regex sanitizer.")
+
+    # Regex defense-in-depth fallback
     for pattern in FORBIDDEN_KEYWORDS:
         if re.search(pattern, clean, re.IGNORECASE):
             raise ValueError("Mutation statement detected. Only read-only SELECT queries are permitted.")
@@ -59,11 +104,10 @@ def normalize_sql_for_duckdb(sql: str) -> str:
     if not (clean.upper().startswith("SELECT") or clean.upper().startswith("WITH")):
         raise ValueError("Query must start with SELECT or WITH.")
 
-    # Replace `gcp-etl-497002.dbt_prod.table` or gcp-etl-497002.dbt_prod.table or `dbt_prod`.`table` with `table`
     clean = re.sub(r"`?gcp-etl-497002`?\.`?dbt_prod`?\.`?([a-zA-Z0-9_]+)`?", r"\1", clean, flags=re.IGNORECASE)
     clean = re.sub(r"`?dbt_prod`?\.`?([a-zA-Z0-9_]+)`?", r"\1", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\bFLOAT64\b", "DOUBLE", clean, flags=re.IGNORECASE)
 
-    # Convert EXTRACT(YEAR FROM col) or standard functions if needed (DuckDB natively supports EXTRACT, DATE_TRUNC, etc.)
     if not re.search(r"\bLIMIT\b", clean, re.IGNORECASE):
         clean += " LIMIT 50"
 
@@ -104,8 +148,7 @@ def run_analytical_query(sql_query: str) -> str:
         except ValueError as val_err:
             return json.dumps({"error": str(val_err), "status": "forbidden_query"})
         except Exception as duck_err:
-            # Fall through to BigQuery on syntax error or missing function
-            print(f"DuckDB execution exception ({duck_err}), falling back to BigQuery...")
+            return json.dumps({"status": "sql_error", "message": f"SQL execution failed in DuckDB: {duck_err}"})
 
     # Fallback to BigQuery
     from bq_executor import run_analytical_query as bq_run

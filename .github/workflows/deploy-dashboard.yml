@@ -32,15 +32,40 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           export_environment_variables: true
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Verify Backend Health Check
         run: |
           echo "=== Verifying AI Backend Proxy Health ==="
           BACKEND_URL=$(grep -oE "https://[^']+" evidence_dashboard/components/CockpitDiagnosticAiCard.svelte | head -n 1 || echo "")
-          if [ -n "$BACKEND_URL" ]; then
-            BASE_URL=$(echo "$BACKEND_URL" | sed 's|/chat$||')
-            echo "Pinging ${BASE_URL}/health..."
-            curl -f -s --max-time 10 "${BASE_URL}/health" || echo "⚠️ Warning: Backend health check timed out or unreachable. Dashboard will fall back to preset caches."
+          if [ -z "$BACKEND_URL" ]; then
+            echo "❌ Error: Backend URL not found in CockpitDiagnosticAiCard.svelte"
+            exit 1
+          fi
+
+          BASE_URL=$(echo "$BACKEND_URL" | sed 's|/chat$||')
+          HEALTH_URL="${BASE_URL}/health"
+          echo "Target Health Endpoint: ${HEALTH_URL}"
+
+          HEALTH_SUCCESS=false
+          for i in {1..6}; do
+            echo "Health check attempt $i/6, polling every 5s..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              HEALTH_SUCCESS=true
+              echo "✓ Backend health verified (HTTP 200 OK)."
+              break
+            fi
+            echo "Attempt $i returned HTTP $HTTP_CODE. Waiting 5s for cold start..."
+            sleep 5
+          done
+
+          if [ "$HEALTH_SUCCESS" = false ]; then
+            echo "::error file=evidence_dashboard/components/CockpitDiagnosticAiCard.svelte::Backend health check failed at ${HEALTH_URL}. Cloud Function is unreachable or returning non-200."
+            exit 1
           fi
 
       - name: Install Dependencies

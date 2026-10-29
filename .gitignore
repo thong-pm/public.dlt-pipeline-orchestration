@@ -27,6 +27,13 @@ gcp-credentials.json
 logs/
 *.log
 scratch/
+*.duckdb
+*.duckdb*
+/test_*.py
+/*_test.py
+scripts/test_*.py
+scripts/debug_*.py
+scripts/scratch/
 
 # Personal note
 *note.txt

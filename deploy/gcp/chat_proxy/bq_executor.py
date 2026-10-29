@@ -10,6 +10,13 @@ from google.oauth2 import service_account
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "gcp-etl-497002")
 DATASET_ID = os.environ.get("BIGQUERY_DATASET", "dbt_prod")
 
+try:
+    import sqlglot
+    from sqlglot import exp
+    HAS_SQLGLOT = True
+except ImportError:
+    HAS_SQLGLOT = False
+
 FORBIDDEN_KEYWORDS = [
     r"\bINSERT\b", r"\bUPDATE\b", r"\bDELETE\b", r"\bDROP\b",
     r"\bALTER\b", r"\bCREATE\b", r"\bTRUNCATE\b", r"\bMERGE\b",
@@ -39,8 +46,53 @@ def get_bigquery_client() -> bigquery.Client:
     return _bq_client
 
 def sanitize_and_qualify_query(sql: str) -> str:
-    """Validate query is read-only and qualify table references."""
+    """Validate query is read-only and qualify table references using AST analysis."""
     clean_sql = sql.strip().rstrip(";")
+
+    known_tables = {
+        "fct_executive_cockpit", "fct_pipeline", "fct_revenue",
+        "dim_projects", "dim_customers", "dim_products",
+        "seed_dim_business_units", "seed_dim_regions", "seed_xero_invoices"
+    }
+
+    if HAS_SQLGLOT:
+        try:
+            statements = sqlglot.parse(clean_sql, read="bigquery")
+            if not statements:
+                raise ValueError("Empty or invalid SQL statement.")
+            if len(statements) > 1:
+                raise ValueError("Multiple SQL statements detected. Only a single SELECT query is permitted.")
+
+            parsed = statements[0]
+            if not isinstance(parsed, (exp.Select, exp.Union)):
+                raise ValueError("Query must start with SELECT or WITH.")
+
+            forbidden_ast_nodes = (
+                exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Alter,
+                exp.Create, exp.Merge, exp.Command, exp.Transaction
+            )
+            for node in parsed.walk():
+                if isinstance(node, forbidden_ast_nodes):
+                    raise ValueError(f"Mutation statement detected ({type(node).__name__}). Only read-only SELECT queries are permitted.")
+                if isinstance(node, exp.Table):
+                    tbl = (node.name or "").lower()
+                    if any(f in tbl for f in ["information_schema", "sqlite_", "pg_", "duckdb_"]):
+                        raise ValueError("Exploratory metadata queries on system tables are forbidden.")
+
+            for table in parsed.find_all(exp.Table):
+                t_name = (table.name or "").lower()
+                if t_name in known_tables:
+                    table.set("db", DATASET_ID)
+                    table.set("catalog", PROJECT_ID)
+
+            if not parsed.args.get("limit"):
+                parsed = parsed.limit(50)
+
+            return parsed.sql(dialect="bigquery")
+        except ValueError:
+            raise
+        except Exception as err:
+            print(f"[AST Parser] Notice: sqlglot parse exception ({err}), falling back to regex sanitizer.")
 
     for pattern in FORBIDDEN_KEYWORDS:
         if re.search(pattern, clean_sql, re.IGNORECASE):
@@ -50,11 +102,6 @@ def sanitize_and_qualify_query(sql: str) -> str:
         raise ValueError("Query must start with SELECT or WITH.")
 
     # Qualify unqualified table names after FROM or JOIN, avoiding string literals in quotes
-    known_tables = [
-        "fct_executive_cockpit", "fct_pipeline", "fct_revenue",
-        "dim_projects", "dim_customers", "dim_products",
-        "seed_dim_business_units", "seed_dim_regions", "seed_xero_invoices"
-    ]
     for table in known_tables:
         pattern = rf"\b(FROM|JOIN)\s+(`?){table}(`?)\b"
         replacement = rf"\1 `{PROJECT_ID}.{DATASET_ID}.{table}`"

@@ -1,9 +1,74 @@
-"""In-memory rate limiter enforcing per-session allowances and protecting Gemini quotas."""
+"""Rate limiter with sliding window enforcement and distributed store support."""
 
+import json
+import os
 import time
+import urllib.request
+import urllib.error
 from collections import deque
 from datetime import datetime, timezone
-from typing import Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
+
+class DistributedStore:
+    """Pluggable key-value store supporting REST Redis, file persistence, and in-memory cache."""
+
+    def __init__(self) -> None:
+        self.redis_url = os.environ.get("REDIS_REST_URL") or os.environ.get("UPSTASH_REDIS_REST_URL")
+        self.redis_token = os.environ.get("REDIS_REST_TOKEN") or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+        self.file_path = os.environ.get("RATE_LIMIT_STORAGE_FILE")
+        self.memory_store: Dict[str, Tuple[float, Any]] = {}
+
+    def _redis_command(self, *command_parts: str) -> Optional[Any]:
+        if not self.redis_url or not self.redis_token:
+            return None
+        url = self.redis_url.rstrip("/") + "/" + "/".join(command_parts)
+        req = urllib.request.Request(
+            url,
+            headers={"Authorization": f"Bearer {self.redis_token}"}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                return data.get("result")
+        except Exception:
+            return None
+
+    def get(self, key: str) -> Optional[Any]:
+        if self.redis_url and self.redis_token:
+            res = self._redis_command("get", key)
+            if res is not None:
+                try:
+                    return json.loads(res)
+                except Exception:
+                    return res
+        if key in self.memory_store:
+            expiry, val = self.memory_store[key]
+            if expiry == 0 or time.time() < expiry:
+                return val
+            del self.memory_store[key]
+        return None
+
+    def set(self, key: str, value: Any, ttl_seconds: int = 0) -> None:
+        val_str = json.dumps(value) if not isinstance(value, (int, str)) else str(value)
+        if self.redis_url and self.redis_token:
+            if ttl_seconds > 0:
+                self._redis_command("setex", key, str(ttl_seconds), val_str)
+            else:
+                self._redis_command("set", key, val_str)
+        expiry = time.time() + ttl_seconds if ttl_seconds > 0 else 0
+        self.memory_store[key] = (expiry, value)
+
+    def incr(self, key: str, ttl_seconds: int = 86400) -> int:
+        if self.redis_url and self.redis_token:
+            res = self._redis_command("incr", key)
+            if isinstance(res, int):
+                self._redis_command("expire", key, str(ttl_seconds))
+                return res
+        curr = self.get(key)
+        new_val = (int(curr) if curr is not None else 0) + 1
+        self.set(key, new_val, ttl_seconds=ttl_seconds)
+        return new_val
+
 
 class RateLimiter:
     def __init__(
@@ -18,6 +83,7 @@ class RateLimiter:
         self.max_ip_rpm = max_per_ip_per_minute
         self.max_ip_rpd = max_per_ip_per_day
 
+        self.store = DistributedStore()
         self.global_requests: deque = deque()
         self.ip_requests: Dict[str, deque] = {}
         self.ip_daily_count: Dict[str, int] = {}
@@ -41,11 +107,16 @@ class RateLimiter:
         one_minute_ago = now - 60.0
 
         self._reset_daily_if_needed()
+        today = self.current_day
 
-        current_ip_count = self.ip_daily_count.get(client_ip, 0)
+        # Check external distributed counter if configured
+        ip_day_key = f"copilot:ratelimit:ip:{client_ip}:{today}"
+        global_day_key = f"copilot:ratelimit:global:{today}"
+
+        dist_ip_count = self.store.get(ip_day_key)
+        current_ip_count = int(dist_ip_count) if dist_ip_count is not None else self.ip_daily_count.get(client_ip, 0)
         session_remaining = max(0, self.max_ip_rpd - current_ip_count)
 
-        # 1. Check user per-session daily allowance (max 20)
         if current_ip_count >= self.max_ip_rpd:
             return (
                 False,
@@ -53,15 +124,16 @@ class RateLimiter:
                 0
             )
 
-        # 2. Check internal global daily circuit breaker (1000)
-        if self.daily_count >= self.max_rpd:
+        dist_global_count = self.store.get(global_day_key)
+        curr_global_count = int(dist_global_count) if dist_global_count is not None else self.daily_count
+        if curr_global_count >= self.max_rpd:
             return (
                 False,
                 "Analytical query capacity temporarily reached for today. Resets at 00:00 UTC.",
                 0
             )
 
-        # 3. Clean and check global RPM
+        # In-memory sliding window for short-term RPM
         while self.global_requests and self.global_requests[0] < one_minute_ago:
             self.global_requests.popleft()
 
@@ -74,7 +146,6 @@ class RateLimiter:
                 session_remaining
             )
 
-        # 4. Clean and check per-IP RPM
         ip_queue = self.ip_requests.setdefault(client_ip, deque())
         while ip_queue and ip_queue[0] < one_minute_ago:
             ip_queue.popleft()
@@ -88,11 +159,14 @@ class RateLimiter:
                 session_remaining
             )
 
-        # 5. Record request
+        # Record request locally and in distributed store
         self.global_requests.append(now)
         ip_queue.append(now)
         self.daily_count += 1
         self.ip_daily_count[client_ip] = current_ip_count + 1
 
-        new_session_remaining = max(0, self.max_ip_rpd - self.ip_daily_count[client_ip])
+        new_count = self.store.incr(ip_day_key, ttl_seconds=86400)
+        self.store.incr(global_day_key, ttl_seconds=86400)
+
+        new_session_remaining = max(0, self.max_ip_rpd - new_count)
         return (True, "", new_session_remaining)

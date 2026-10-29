@@ -6,7 +6,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 sys.path.insert(0, os.path.dirname(__file__))
-from main import process_chat_query, build_cors_headers
+from main import process_chat_query, stream_chat_query, build_cors_headers
 
 PORT = int(os.environ.get("CHAT_PROXY_PORT", 8090))
 HOST = os.environ.get("CHAT_PROXY_HOST", "0.0.0.0")
@@ -37,9 +37,10 @@ class ChatProxyRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b'{"status": "ok", "message": "Copilot preset cache reloaded from disk"}')
             return
 
-        if self.path not in ["/", "/chat", "/query"]:
+        valid_endpoints = ["/", "/chat", "/query", "/chat/stream", "/stream"]
+        if self.path not in valid_endpoints:
             self._send_cors_headers(404)
-            self.wfile.write(b'{"error": "Endpoint not found. POST to /chat"}')
+            self.wfile.write(b'{"error": "Endpoint not found. POST to /chat or /chat/stream"}')
             return
 
         content_length = int(self.headers.get("Content-Length", 0))
@@ -65,6 +66,31 @@ class ChatProxyRequestHandler(BaseHTTPRequestHandler):
         client_ip = self.headers.get("X-Forwarded-For") or self.client_address[0]
         context = body.get("context") or {}
         history = body.get("history") or []
+
+        is_stream = bool(
+            body.get("stream")
+            or self.path in ["/chat/stream", "/stream"]
+            or self.headers.get("Accept") == "text/event-stream"
+        )
+
+        if is_stream:
+            self.send_response(200)
+            for key, val in build_cors_headers().items():
+                if key != "Content-Type":
+                    self.send_header(key, val)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+
+            try:
+                for event in stream_chat_query(prompt, context, client_ip, history=history):
+                    self.wfile.write(event.encode("utf-8"))
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
 
         status_code, response_payload = process_chat_query(prompt, context, client_ip, history=history)
         self._send_cors_headers(status_code)

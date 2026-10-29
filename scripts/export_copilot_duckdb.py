@@ -43,6 +43,7 @@ def export_to_duckdb(output_file: str = OUTPUT_PATH) -> None:
 
     print(f"Exporting tables to DuckDB file: {output_file}")
     t0 = time.time()
+    failed_tables = []
 
     for table in TABLES:
         try:
@@ -73,7 +74,15 @@ def export_to_duckdb(output_file: str = OUTPUT_PATH) -> None:
 
             print(f"  ✓ {table}: {row_count} rows")
         except Exception as exc:
-            print(f"  ⚠️ Warning: failed to export {table}: {exc}")
+            print(f"  ❌ Error exporting {table}: {exc}", file=sys.stderr)
+            failed_tables.append((table, str(exc)))
+
+    if failed_tables:
+        conn.close()
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        failed_summary = ", ".join(f"{t} ({err})" for t, err in failed_tables)
+        raise RuntimeError(f"DuckDB export aborted. {len(failed_tables)} table(s) failed: {failed_summary}. Existing database preserved.")
 
     # Register BigQuery compatibility macros
     try:
@@ -81,7 +90,10 @@ def export_to_duckdb(output_file: str = OUTPUT_PATH) -> None:
         conn.execute("CREATE OR REPLACE MACRO ifnull(a, b) AS COALESCE(a, b)")
         print("  ✓ Registered BigQuery compatibility macros (safe_divide, ifnull)")
     except Exception as e:
-        print(f"  ⚠️ Warning: failed to create macros: {e}")
+        conn.close()
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise RuntimeError(f"Failed to register BigQuery macros: {e}")
 
     conn.close()
 

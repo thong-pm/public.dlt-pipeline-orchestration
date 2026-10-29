@@ -35,8 +35,8 @@
 
   onMount(() => {
     if (browser) {
-      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      activeEndpoint = isLocal ? LOCAL_DEV_DEFAULT : CLOUD_FUNCTION_DEFAULT;
+      const isDevServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '3000';
+      activeEndpoint = isDevServer ? LOCAL_DEV_DEFAULT : CLOUD_FUNCTION_DEFAULT;
 
       const cached = sessionStorage.getItem('cockpit_chat_history');
       if (cached) {
@@ -82,10 +82,16 @@
   }
 
   const clientPromptCache = new Map();
+  let currentAbortController = null;
 
   async function submitQuery(queryText) {
     const textToSend = (queryText || inputPrompt).trim();
     if (!textToSend || isLoading || cooldownSeconds > 0 || sessionRemaining <= 0) return;
+
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
 
     isOpen = true;
     errorMessage = '';
@@ -93,9 +99,14 @@
 
     const normalizedKey = textToSend.toLowerCase().trim();
 
-    // Check client-side in-memory cache for instant replay (skip cache for conversational pronouns)
-    const isFollowUpPronoun = ['why', 'why?', 'how', 'who', 'what else', 'tell me more'].includes(normalizedKey);
-    if (!isFollowUpPronoun && clientPromptCache.has(normalizedKey)) {
+    // Check client-side in-memory cache for instant replay (only for standalone first queries, never in multi-turn conversation)
+    const isMultiTurn = messages.length > 0;
+    const isConversationalParticle = [
+      'why', 'why?', 'how', 'who', 'what else', 'tell me more',
+      'yes', 'no', 'ok', 'yep', 'sure', 'y', 'n', 'wrong answer', 'continue'
+    ].includes(normalizedKey);
+
+    if (!isMultiTurn && !isConversationalParticle && clientPromptCache.has(normalizedKey)) {
       const cached = clientPromptCache.get(normalizedKey);
       messages = [
         ...messages,
@@ -135,6 +146,7 @@
     setTimeout(scrollToBottom, 50);
 
     const context = getActiveFilters();
+    currentAbortController = new AbortController();
 
     try {
       const response = await fetch(activeEndpoint, {
@@ -144,7 +156,8 @@
           prompt: textToSend,
           context,
           history: historyPayload
-        })
+        }),
+        signal: currentAbortController.signal
       });
 
       const data = await response.json();
@@ -155,10 +168,12 @@
       } else {
         if (data.session_remaining !== undefined) sessionRemaining = data.session_remaining;
         const answerText = data.answer || 'No response text returned.';
-        clientPromptCache.set(normalizedKey, {
-          text: answerText,
-          model: data.model_used
-        });
+        if (!isMultiTurn && !isConversationalParticle) {
+          clientPromptCache.set(normalizedKey, {
+            text: answerText,
+            model: data.model_used
+          });
+        }
         messages = [
           ...messages,
           {
@@ -170,9 +185,13 @@
         ];
       }
     } catch (err) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       errorMessage = `Cannot connect to AI Proxy at ${activeEndpoint}. Ensure proxy is running.`;
     } finally {
       isLoading = false;
+      currentAbortController = null;
       startCooldown(4);
       setTimeout(scrollToBottom, 50);
     }
@@ -417,7 +436,13 @@
             </button>
           {/if}
           <button
-            on:click={() => (isOpen = false)}
+            on:click={() => {
+              isOpen = false;
+              if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+              }
+            }}
             class="text-gray-400 hover:text-white p-1 rounded transition text-sm font-bold"
             title="Close Panel"
             aria-label="Close"
