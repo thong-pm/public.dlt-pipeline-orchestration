@@ -218,8 +218,8 @@ title: "Executive Cockpit Dashboard"
   :global(.dropdown-menu),
   :global(option) {
     width: auto !important;
-    min-width: 220px !important;
-    max-width: 360px !important;
+    min-width: 180px !important;
+    max-width: calc(100vw - 24px) !important;
     white-space: normal !important;
     word-break: break-word !important;
     background-color: #ffffff !important;
@@ -521,7 +521,7 @@ order by avg_days desc
 <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-3.5">
   
   <!-- Graph 1: Monthly Cash Flow -->
-  <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
+  <div class="bg-white p-3.5 rounded-xl shadow-sm min-h-[260px] h-auto flex flex-col justify-between">
     <div class="flex items-center gap-1.5 mb-1">
       <span class="font-bold text-gray-700 text-xs">Monthly Cash Flow (Billed vs. Costs vs. Gross Profit)</span>
       <Info description="Compares actual invoices billed (Xero), job costs (Procore), and resulting gross profit." />
@@ -566,7 +566,7 @@ order by avg_days desc
   </div>
 
   <!-- Graph 2: Margin Fade -->
-  <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
+  <div class="bg-white p-3.5 rounded-xl shadow-sm min-h-[260px] h-auto flex flex-col justify-between">
     <div class="flex items-center gap-1.5 mb-1">
       <span class="font-bold text-gray-700 text-xs">Margin Fade (Sold vs. Actual Margin)</span>
       <Info description="Measures sold contract margin % (HubSpot) vs actual realized margin % (Procore & Xero)." />
@@ -611,7 +611,7 @@ order by avg_days desc
   </div>
 
   <!-- Graph 3: Revenue Forecast -->
-  <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
+  <div class="bg-white p-3.5 rounded-xl shadow-sm min-h-[260px] h-auto flex flex-col justify-between">
     <div class="flex items-center gap-1.5 mb-1">
       <span class="font-bold text-gray-700 text-xs">Forward Demand & Backlog (Pipeline vs. WIP Schedule)</span>
       <Info description="Compares HubSpot open pipeline demand against Procore active unbilled delivery backlog." />
@@ -652,7 +652,7 @@ order by avg_days desc
   </div>
 
   <!-- Graph 4: Lead to Cash Cycle Time -->
-  <div class="bg-white p-3.5 rounded-xl shadow-sm h-[260px] overflow-hidden">
+  <div class="bg-white p-3.5 rounded-xl shadow-sm min-h-[260px] h-auto flex flex-col justify-between">
     <div class="flex items-center gap-1.5 mb-1">
       <span class="font-bold text-gray-700 text-xs">Lead to Cash Cycle Time (Days)</span>
       <Info description="Average days elapsed from HubSpot lead creation to final Xero invoice payment." />

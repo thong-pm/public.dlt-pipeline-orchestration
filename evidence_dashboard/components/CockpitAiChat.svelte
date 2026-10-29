@@ -34,8 +34,8 @@
 
   onMount(() => {
     if (browser) {
-      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      activeEndpoint = isLocal ? LOCAL_DEV_DEFAULT : CLOUD_FUNCTION_DEFAULT;
+      const isDevServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '3000';
+      activeEndpoint = isDevServer ? LOCAL_DEV_DEFAULT : CLOUD_FUNCTION_DEFAULT;
     }
   });
 
@@ -155,7 +155,7 @@
   }
 </script>
 
-<div class="fixed bottom-5 right-5 z-50 font-sans">
+<div class="fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50 font-sans max-w-[calc(100vw-24px)]">
   {#if !isOpen}
     <button
       on:click={() => (isOpen = true)}
@@ -168,7 +168,7 @@
       <span class="text-xs font-semibold tracking-wide uppercase">Ask Cockpit AI</span>
     </button>
   {:else}
-    <div class="w-[390px] h-[550px] bg-[#0b111e] border border-[#1e293b] rounded-xl shadow-2xl flex flex-col overflow-hidden text-gray-200 text-xs">
+    <div class="w-[calc(100vw-24px)] sm:w-[390px] h-[min(550px,calc(100vh-80px))] bg-[#0b111e] border border-[#1e293b] rounded-xl shadow-2xl flex flex-col overflow-hidden text-gray-200 text-xs">
       <!-- Chat Header -->
       <div class="bg-[#0f172a] px-4 py-3 border-b border-[#1e293b] flex items-center justify-between">
         <div class="flex items-center gap-2">

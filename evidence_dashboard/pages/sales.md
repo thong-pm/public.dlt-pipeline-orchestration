@@ -335,7 +335,7 @@ order by pipeline_value desc
       </div>
       
       <!-- Bound dynamically to SQL queries bu_list and region_list -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <GlobalMultiSelect name="business_unit" title="Business Unit" data={bu_list} valueColumn="business_unit_id" labelColumn="business_unit" />
         <GlobalMultiSelect name="region" title="Region" data={region_list} valueColumn="region_id" labelColumn="region" />
       </div>
@@ -348,7 +348,7 @@ order by pipeline_value desc
 
   <!-- Right Side: Sales Insights Card (Locked height to prevent layout push) -->
   <div class="flex flex-col items-end self-stretch md:self-auto">
-    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[320px] h-[75px] flex flex-col justify-between overflow-hidden text-[9px]">
+    <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 w-full md:w-[320px] min-h-[75px] h-auto flex flex-col justify-between text-[9px]">
       <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center gap-1">
         <span>💡</span> Sales Insights
       </div>
@@ -452,7 +452,7 @@ order by pipeline_value desc
 <!-- Row 2: Sales Charts -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-3.5">
   
-  <div class="bg-white p-3.5 rounded-xl shadow-sm h-[250px] overflow-hidden">
+  <div class="bg-white p-3.5 rounded-xl shadow-sm min-h-[250px] h-auto flex flex-col justify-between">
     <div class="flex items-center gap-1.5 mb-1">
       <span class="font-bold text-gray-700 text-xs">CRM Closed Won/Lost Reason Breakdown</span>
       <Info description="Compares reasons for deals won or lost to understand competitor performance and pricing issues." />
@@ -490,7 +490,7 @@ order by pipeline_value desc
     />
   </div>
 
-  <div class="bg-white p-3.5 rounded-xl shadow-sm h-[250px] overflow-hidden">
+  <div class="bg-white p-3.5 rounded-xl shadow-sm min-h-[250px] h-auto flex flex-col justify-between">
     <div class="flex items-center gap-1.5 mb-1">
       <span class="font-bold text-gray-700 text-xs">Open Pipeline Value by Corporate Client</span>
       <Info description="Breakdown of open pipeline amounts by customer to identify key account values." />

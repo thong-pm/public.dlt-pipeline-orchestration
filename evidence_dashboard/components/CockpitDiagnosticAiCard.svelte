@@ -221,9 +221,9 @@
   }
 </script>
 
-<div class="relative w-full md:w-[380px] font-sans">
+<div class="relative w-full max-w-full md:w-[380px] font-sans">
   <!-- Always-Visible Embedded Cockpit Diagnostic Card -->
-  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 min-h-[92px] flex flex-col justify-between text-[9px] transition-all">
+  <div class="bg-white rounded-xl shadow-sm border-t-4 border-[#B45309] px-3.5 py-2 min-h-[92px] flex flex-col justify-between text-[9px] transition-all max-w-full">
     <!-- Header Row -->
     <div class="font-bold uppercase tracking-wider text-gray-500 text-[8px] flex items-center justify-between gap-1 w-full">
       <div class="flex items-center gap-1.5 relative flex-nowrap shrink-0">
@@ -306,15 +306,15 @@
     <!-- The 3 Cross-System Signals (Read directly from Evidence SQL store with 0 API cost) -->
     <div class="flex flex-col gap-1 text-gray-600 leading-tight my-1">
       <!-- Signal 1: Xero AR -->
-      <div class="flex items-center justify-between group">
-        <div class="flex items-start gap-1 truncate">
-          <span class="text-amber-600 font-bold">⚠️</span>
+      <div class="flex items-center justify-between gap-1 group">
+        <div class="flex items-start gap-1 min-w-0">
+          <span class="text-amber-600 font-bold shrink-0">⚠️</span>
           <span class="truncate"><strong>Xero Overdue AR:</strong> {overdueCount} invoice ({overdueAmount}) pending.</span>
         </div>
         <button
           disabled={isLoading || cooldownSeconds > 0 || sessionRemaining <= 0}
           on:click={() => submitQuery("Which customer owes the " + overdueAmount + " overdue invoice in Xero, and what is the invoice ID and due date?")}
-          class="text-[8px] font-semibold text-[#0d9488] hover:underline whitespace-nowrap ml-1 bg-teal-50 hover:bg-teal-100 disabled:opacity-40 px-1.5 py-0.5 rounded cursor-pointer disabled:cursor-not-allowed"
+          class="shrink-0 text-[8px] font-semibold text-[#0d9488] hover:underline whitespace-nowrap ml-1 bg-teal-50 hover:bg-teal-100 disabled:opacity-40 px-1.5 py-0.5 rounded cursor-pointer disabled:cursor-not-allowed"
           title="Query details with AI"
         >
           Who owes this?
@@ -322,15 +322,15 @@
       </div>
 
       <!-- Signal 2: HubSpot Stalled -->
-      <div class="flex items-center justify-between group">
-        <div class="flex items-start gap-1 truncate">
-          <span class="text-amber-600 font-bold">⚠️</span>
+      <div class="flex items-center justify-between gap-1 group">
+        <div class="flex items-start gap-1 min-w-0">
+          <span class="text-amber-600 font-bold shrink-0">⚠️</span>
           <span class="truncate"><strong>HubSpot Stalled:</strong> {stalledCount} deals ({stalledAmount}) past close.</span>
         </div>
         <button
           disabled={isLoading || cooldownSeconds > 0 || sessionRemaining <= 0}
           on:click={() => submitQuery("List the top 5 stalled deals in HubSpot by value that are past close date with their amounts.")}
-          class="text-[8px] font-semibold text-[#0d9488] hover:underline whitespace-nowrap ml-1 bg-teal-50 hover:bg-teal-100 disabled:opacity-40 px-1.5 py-0.5 rounded cursor-pointer disabled:cursor-not-allowed"
+          class="shrink-0 text-[8px] font-semibold text-[#0d9488] hover:underline whitespace-nowrap ml-1 bg-teal-50 hover:bg-teal-100 disabled:opacity-40 px-1.5 py-0.5 rounded cursor-pointer disabled:cursor-not-allowed"
           title="Query details with AI"
         >
           Breakdown deals
@@ -338,15 +338,15 @@
       </div>
 
       <!-- Signal 3: Procore Backlog -->
-      <div class="flex items-center justify-between group">
-        <div class="flex items-start gap-1 truncate">
-          <span class="text-[#264773] font-bold">📋</span>
+      <div class="flex items-center justify-between gap-1 group">
+        <div class="flex items-start gap-1 min-w-0">
+          <span class="text-[#264773] font-bold shrink-0">📋</span>
           <span class="truncate"><strong>Procore Backlog:</strong> {wipAmount} unbilled contract work.</span>
         </div>
         <button
           disabled={isLoading || cooldownSeconds > 0 || sessionRemaining <= 0}
           on:click={() => submitQuery("What is our unbilled project delivery backlog broken down by business unit?")}
-          class="text-[8px] font-semibold text-[#0d9488] hover:underline whitespace-nowrap ml-1 bg-teal-50 hover:bg-teal-100 disabled:opacity-40 px-1.5 py-0.5 rounded cursor-pointer disabled:cursor-not-allowed"
+          class="shrink-0 text-[8px] font-semibold text-[#0d9488] hover:underline whitespace-nowrap ml-1 bg-teal-50 hover:bg-teal-100 disabled:opacity-40 px-1.5 py-0.5 rounded cursor-pointer disabled:cursor-not-allowed"
           title="Query details with AI"
         >
           By BU
@@ -374,7 +374,7 @@
     </form>
 
     <!-- Suggested Prompts Below Chat Bar -->
-    <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
+    <div class="flex flex-wrap sm:flex-nowrap items-center gap-1.5 pt-1">
       <span class="text-[8px] text-gray-400 font-semibold whitespace-nowrap">Suggested:</span>
       <button
         type="button"
