@@ -1,3 +1,13 @@
+{{ config(
+    materialized='table',
+    partition_by={
+      "field": "closed_at",
+      "data_type": "date",
+      "granularity": "month"
+    },
+    cluster_by=["deal_stage"]
+) }}
+
 with deals as (
     select * from {{ ref('stg_hubspot__deals') }}
 ),

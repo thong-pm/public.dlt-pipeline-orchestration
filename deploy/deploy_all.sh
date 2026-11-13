@@ -46,15 +46,13 @@ done
 # ------------------------------------------------------------------------------
 # Robust Error Trap: "Talks to you" on any failure and guarantees zero broken deploys
 # ------------------------------------------------------------------------------
-cleanup_and_report_failure() {
-    local exit_code=$?
-    local line_no=$1
-    local command="$2"
-
-    # Always restore local development configuration if altered
+restore_local_evidence_config() {
     if [ -f "/tmp/evidence.config.yaml.bak" ]; then
         cp -f "/tmp/evidence.config.yaml.bak" "${ROOT_DIR}/evidence_dashboard/evidence.config.yaml" 2>/dev/null || true
         rm -f "/tmp/evidence.config.yaml.bak" 2>/dev/null || true
+    fi
+    if [ -f "${ROOT_DIR}/evidence_dashboard/evidence.config.yaml" ]; then
+        sed -i '/^deployment:/,$d' "${ROOT_DIR}/evidence_dashboard/evidence.config.yaml" 2>/dev/null || true
     fi
 
     if [ -d "${ROOT_DIR}/evidence_dashboard/sources/analytics" ]; then
@@ -69,6 +67,21 @@ options:
   ssl: false
 PGEOF
     fi
+}
+
+cleanup_on_interrupt() {
+    restore_local_evidence_config
+    echo ""
+    echo "🛑 Deployment interrupted by user. Local Evidence configuration restored."
+    exit 130
+}
+
+cleanup_and_report_failure() {
+    local exit_code=$?
+    local line_no=$1
+    local command="$2"
+
+    restore_local_evidence_config
 
     echo ""
     echo "======================================================================"
@@ -106,6 +119,7 @@ PGEOF
     exit ${exit_code}
 }
 trap 'cleanup_and_report_failure $LINENO "$BASH_COMMAND"' ERR
+trap 'cleanup_on_interrupt' INT TERM
 
 # Load local environment variables
 if [ -f "${ROOT_DIR}/.env" ]; then
@@ -292,7 +306,8 @@ echo "Replicating GitHub Actions base path (/${GITHUB_REPO_NAME}) to prevent lin
 
 cd "${ROOT_DIR}/evidence_dashboard"
 
-# Backup evidence.config.yaml before temporary production injection
+# Strip any leftover deployment block before backing up to prevent duplicate keys
+sed -i '/^deployment:/,$d' "${ROOT_DIR}/evidence_dashboard/evidence.config.yaml"
 cp "${ROOT_DIR}/evidence_dashboard/evidence.config.yaml" "/tmp/evidence.config.yaml.bak"
 
 # Inject production basePath to replicate GitHub Pages crawler behavior
@@ -318,19 +333,7 @@ BUILD_LOG="/tmp/evidence_build.log"
 npm run build 2>&1 | tee "$BUILD_LOG"
 
 # Immediately restore configuration
-cp -f "/tmp/evidence.config.yaml.bak" "${ROOT_DIR}/evidence_dashboard/evidence.config.yaml"
-rm -f "/tmp/evidence.config.yaml.bak"
-
-cat << EOF > sources/analytics/connection.yaml
-name: analytics
-type: postgres
-options:
-  host: localhost
-  port: 5432
-  database: wsltest_db
-  user: wsltest
-  ssl: false
-EOF
+restore_local_evidence_config
 echo "✓ Restored local Evidence sandbox to Postgres (dev) for interactive development."
 
 # Verify build output

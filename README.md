@@ -149,7 +149,15 @@ Built with Evidence.dev, featuring 3 operational pages with 21 automated data qu
 * **Local Development**: Runs via Python or Docker against PostgreSQL.
 * **Cloud Execution**: Containerized job on GCP Cloud Run executed via `pipeline.sh cloud` loading to BigQuery.
 
+### Dual-Engine Support (PostgreSQL & BigQuery)
+
+This pipeline is configured to run against **local PostgreSQL** (`dev`) and **Google BigQuery** (`prod`) from a single codebase:
+* **Why**: Validates that the `dlt` + `dbt` template is portable across both relational databases (for smaller deployments) and cloud columnar warehouses, while allowing local `dbt` runs to finish in ~3 seconds instead of waiting on cloud API latency.
+* **Cross-Dialect Mechanics**: Uses `dbt.type_*()` macros for type casting, `generate_surrogate_key()` for cross-engine hashing (`MD5` vs `TO_HEX(MD5)`), and dynamic source schema routing (`_raw` vs `_data`).
+* **When to Pivot**: Supporting two SQL engines requires avoiding native BigQuery functions (`UNNEST`, `SAFE_CAST`) and adds dialect testing overhead. For teams committed strictly to BigQuery, `dev` should target an isolated BigQuery dataset (`dbt_dev` or ephemeral PR schemas) to guarantee 100% dialect parity, or use **DuckDB** (`dbt-duckdb`) for local OLAP execution.
+
 ### Roadmap
 - [ ] **Infrastructure as Code**: Provision Cloud Run, Cloud Scheduler, and GCS using Terraform instead of manual `gcloud` CLI commands.
 - [ ] **Automated CI/CD**: Automate container image build and Cloud Run job updates on git push (currently deployed via CLI).
 - [ ] **Python Orchestrator**: Replace the bash runner (`pipeline.sh`) with a Python runner for cleaner error handling and alerts.
+- [ ] **Automated Metric Reconciliation**: Implement dbt singular audit tests (e.g. `tests/assert_revenue_reconciliation.sql`) asserting `SUM(revenue)` in reporting marts matches raw staging totals within a $0.01 tolerance to flag join drift before dashboard refreshes.

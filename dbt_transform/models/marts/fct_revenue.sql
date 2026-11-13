@@ -1,3 +1,13 @@
+{{ config(
+    materialized='table',
+    partition_by={
+      "field": "transaction_date",
+      "data_type": "timestamp",
+      "granularity": "month"
+    },
+    cluster_by=["source_system"]
+) }}
+
 with revenue_source as (
     select * from {{ ref('int_all_revenue') }}
 )
