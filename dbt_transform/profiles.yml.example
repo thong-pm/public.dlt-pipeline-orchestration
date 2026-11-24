@@ -1,22 +1,31 @@
 dbt_transform:
-  target: dev
+  target: local
   outputs:
-    dev:
+    local:
       type: postgres
-      host: localhost
+      host: "{{ env_var('PGHOST', 'localhost') }}"
       port: 5432
-      user: your_postgres_user
-      password: your_postgres_password
-      dbname: your_postgres_db
-      schema: public
+      user: "{{ env_var('PGUSER', 'wsltest') }}"
+      password: "{{ env_var('PGPASSWORD', '') }}"
+      dbname: "{{ env_var('PGDATABASE', 'wsltest_db') }}"
+      schema: dbt_prod
       threads: 4
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'your-gcp-project-id') }}"
+      dataset: "{{ env_var('DBT_BIGQUERY_DATASET', 'dbt_dev') }}"
+      threads: 4
+      location: US
+      priority: interactive
+      maximum_bytes_billed: 10000000000
+      retries: 1
     prod:
       type: bigquery
-      method: service-account
+      method: oauth
       project: "{{ env_var('GCP_PROJECT_ID', 'your-gcp-project-id') }}"
       dataset: dbt_prod
       threads: 4
-      keyfile_json: "{{ env_var('GCP_SA_KEY_JSON', '{}') }}"
       location: US
       priority: interactive
       retries: 1

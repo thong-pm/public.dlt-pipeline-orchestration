@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: hubspot
     description: "Raw HubSpot CRM data loaded by dlt."
-    schema: "{{ 'hubspot_raw' if target.name == 'prod' else 'hubspot_data' }}"
+    schema: "{{ 'hubspot_raw' if target.type == 'bigquery' else 'hubspot_data' }}"
     tables:
       - name: contacts
         description: "HubSpot contact records."
