@@ -28,16 +28,17 @@ on:
       - '.github/workflows/deploy-dashboard.yml'
   workflow_dispatch:
 
-concurrency:
-  group: deploy-dashboard-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
 jobs:
-  build-and-deploy:
+  build-and-test:
     runs-on: ubuntu-latest
+    concurrency:
+      group: build-dashboard-${{ github.ref }}
+      cancel-in-progress: true
+    outputs:
+      dashboard: ${{ steps.changes.outputs.dashboard }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -319,8 +320,34 @@ jobs:
           done
           touch build/.nojekyll
 
+      - name: Upload Evidence Build Artifact
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && steps.changes.outputs.dashboard == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-build-${{ github.run_id }}
+          path: evidence_dashboard/build
+          include-hidden-files: true
+          retention-days: 1
+
+  deploy-pages:
+    needs: build-and-test
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && needs.build-and-test.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-gh-pages
+      cancel-in-progress: false
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Evidence Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: evidence-build-${{ github.run_id }}
+          path: evidence_dashboard/build
+
       - name: Deploy Production Site (main -> root)
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.changes.outputs.dashboard == 'true'
+        if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: evidence_dashboard/build
@@ -330,7 +357,7 @@ jobs:
             staging/**
 
       - name: Deploy Staging Site (dev -> /staging)
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev' && steps.changes.outputs.dashboard == 'true'
+        if: github.ref == 'refs/heads/dev'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: evidence_dashboard/build
