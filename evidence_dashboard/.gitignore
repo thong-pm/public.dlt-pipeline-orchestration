@@ -8,4 +8,5 @@ static/data
 .vscode/settings.json
 .env
 .evidence/meta
+.evidence/.last_target
 sources/**/connection.yaml

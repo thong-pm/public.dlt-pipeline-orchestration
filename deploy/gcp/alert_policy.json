@@ -10,7 +10,7 @@
     }
   ],
   "notificationChannels": [
-    "projects/gcp-etl-497002/notificationChannels/9497352822406433800"
+    "projects/<your-gcp-project-id>/notificationChannels/<your-channel-id>"
   ],
   "alertStrategy": {
     "notificationRateLimit": {

@@ -3,12 +3,32 @@ name: Deploy Dashboard to GitHub Pages
 on:
   push:
     branches:
+      - dev
       - main
     paths:
+      - 'dbt_transform/**'
+      - 'evidence_dashboard/**'
+      - 'deploy/**'
+      - 'scripts/**'
+      - 'sources/**'
+      - 'runners/**'
+      - 'orchestration/**'
+      - 'utils/**'
+      - 'Dockerfile'
+  pull_request:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'dbt_transform/**'
       - 'evidence_dashboard/**'
       - 'deploy/**'
       - 'scripts/**'
   workflow_dispatch:
+
+concurrency:
+  group: deploy-dashboard-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -19,8 +39,98 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Changed Components & Resolve Target Environment
+        id: changes
+        env:
+          GCP_SA_KEY_RAW: ${{ secrets.GCP_SA_KEY }}
+          VAR_GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          VAR_GCP_REGION: ${{ vars.GCP_REGION }}
+          VAR_GCS_TOKEN_BUCKET: ${{ vars.GCS_TOKEN_BUCKET }}
+          VAR_CLOUD_RUN_JOB: ${{ vars.CLOUD_RUN_JOB }}
+        run: |
+          BRANCH_NAME="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          if [ "$BRANCH_NAME" = "main" ]; then
+            echo "DBT_TARGET=prod" >> "$GITHUB_ENV"
+            echo "BQ_DATASET=dbt_prod" >> "$GITHUB_ENV"
+            echo "BASE_PATH=/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
+            echo "DEPLOY_SUBFOLDER=" >> "$GITHUB_ENV"
+          else
+            echo "DBT_TARGET=dev" >> "$GITHUB_ENV"
+            echo "BQ_DATASET=dbt_dev" >> "$GITHUB_ENV"
+            echo "BASE_PATH=/${{ github.event.repository.name }}/staging" >> "$GITHUB_ENV"
+            echo "DEPLOY_SUBFOLDER=staging" >> "$GITHUB_ENV"
+          fi
+
+          python3 - << 'PYEOF' >> "$GITHUB_ENV"
+          import json, os
+          raw = os.environ.get("GCP_SA_KEY_RAW", "{}")
+          try:
+              sa = json.loads(raw) if raw.strip().startswith("{") else {}
+          except Exception:
+              sa = {}
+          project_id = os.environ.get("VAR_GCP_PROJECT_ID") or sa.get("project_id", "")
+          sa_email = sa.get("client_email", "")
+          region = os.environ.get("VAR_GCP_REGION") or "us-central1"
+          bucket = os.environ.get("VAR_GCS_TOKEN_BUCKET") or ""
+          job_name = os.environ.get("VAR_CLOUD_RUN_JOB") or "dlt-pipeline-job"
+          print(f"GCP_PROJECT_ID={project_id}")
+          print(f"GCP_SA_EMAIL={sa_email}")
+          print(f"GCP_REGION={region}")
+          print(f"GCS_TOKEN_BUCKET={bucket}")
+          print(f"CLOUD_RUN_JOB={job_name}")
+          PYEOF
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dbt=true" >> "$GITHUB_OUTPUT"
+            echo "copilot=true" >> "$GITHUB_OUTPUT"
+            echo "job=false" >> "$GITHUB_OUTPUT"
+            echo "dashboard=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DIFF_FILES=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" || git diff --name-only HEAD~1 HEAD || echo "")
+          else
+            BEFORE_SHA="${{ github.event.before }}"
+            if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+              DIFF_FILES=$(git diff --name-only "$BEFORE_SHA" "${{ github.sha }}" || echo "")
+            else
+              DIFF_FILES=$(git diff --name-only HEAD~1 HEAD || echo "")
+            fi
+          fi
+
+          echo "Changed files:"
+          echo "$DIFF_FILES"
+
+          DBT_CHANGED="false"
+          COPILOT_CHANGED="false"
+          JOB_CHANGED="false"
+          DASHBOARD_CHANGED="false"
+
+          if echo "$DIFF_FILES" | grep -qE '^dbt_transform/'; then
+            DBT_CHANGED="true"
+            DASHBOARD_CHANGED="true"
+          fi
+          if echo "$DIFF_FILES" | grep -qE '^(deploy/gcp/chat_proxy/|scripts/.*copilot.*\.py)'; then
+            COPILOT_CHANGED="true"
+          fi
+          if echo "$DIFF_FILES" | grep -qE '^(sources/|runners/|orchestration/|utils/|Dockerfile|pyproject\.toml)'; then
+            JOB_CHANGED="true"
+          fi
+          if echo "$DIFF_FILES" | grep -qE '^(evidence_dashboard/|\.github/workflows/deploy-dashboard\.yml)'; then
+            DASHBOARD_CHANGED="true"
+          fi
+
+          echo "dbt=${DBT_CHANGED}" >> "$GITHUB_OUTPUT"
+          echo "copilot=${COPILOT_CHANGED}" >> "$GITHUB_OUTPUT"
+          echo "job=${JOB_CHANGED}" >> "$GITHUB_OUTPUT"
+          echo "dashboard=${DASHBOARD_CHANGED}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
+        if: steps.changes.outputs.dashboard == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 18
@@ -32,12 +142,22 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           export_environment_variables: true
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Verify Backend Health Check
+      - name: "Gate 0a: Secret Scanning (Gitleaks)"
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Gate 0b: Project ID, SA Email & Loopback Binding Scan"
+        run: python3 scripts/verify_security.py
+
+      - name: "Gate 1: Preflight & Backend Health Check"
+        if: steps.changes.outputs.dashboard == 'true' || steps.changes.outputs.copilot == 'true'
         run: |
           echo "=== Verifying AI Backend Proxy Health ==="
           BACKEND_URL=$(grep -oE "https://[^']+" evidence_dashboard/components/CockpitDiagnosticAiCard.svelte | head -n 1 || echo "")
@@ -64,34 +184,151 @@ jobs:
           done
 
           if [ "$HEALTH_SUCCESS" = false ]; then
-            echo "::error file=evidence_dashboard/components/CockpitDiagnosticAiCard.svelte::Backend health check failed at ${HEALTH_URL}. Cloud Function is unreachable or returning non-200."
+            echo "::error file=evidence_dashboard/components/CockpitDiagnosticAiCard.svelte::Backend health check failed at ${HEALTH_URL}."
             exit 1
           fi
 
-      - name: Install Dependencies
+      - name: "On-Demand Ingestion Refresh: Trigger Cloud Run Job (workflow_dispatch on main)"
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         run: |
-          cd evidence_dashboard
-          npm install
+          echo "=== Triggering Cloud Run Ingestion Job (${CLOUD_RUN_JOB}) and waiting for completion ==="
+          gcloud run jobs execute "${CLOUD_RUN_JOB}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --wait
 
-      - name: Build Dashboard
+      - name: "Update Cloud Run Pipeline Job Image (main only when pipeline code changed)"
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.changes.outputs.job == 'true'
         run: |
-          mkdir -p evidence_dashboard/sources/analytics
-          printf "name: analytics\ntype: bigquery\noptions:\n  authenticator: gcloud-cli\n  project_id: gcp-etl-497002\n  dataset: dbt_prod\n" > evidence_dashboard/sources/analytics/connection.yaml
+          IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dlt-pipeline/pipeline"
+          gcloud builds submit --tag "${IMAGE}" --project "${GCP_PROJECT_ID}" --timeout=600
+          gcloud run jobs update "${CLOUD_RUN_JOB}" \
+            --image "${IMAGE}" \
+            --region "${GCP_REGION}" \
+            --project "${GCP_PROJECT_ID}"
+
+      - name: "Gate 2: dbt Build & Test (Slim CI w/ dbt clone on dev, full build on main)"
+        if: steps.changes.outputs.dbt == 'true'
+        env:
+          DBT_BIGQUERY_DATASET: ${{ env.BQ_DATASET }}
+        run: |
+          pip install --quiet dbt-core dbt-bigquery google-cloud-storage
+          cd dbt_transform
+          dbt deps --profiles-dir .
+
+          if [ "${DBT_TARGET}" = "dev" ] && [ -n "${GCS_TOKEN_BUCKET:-}" ]; then
+            mkdir -p prod_state
+            if python3 -c "
+          import os
+          from google.cloud import storage
+          b = storage.Client().bucket(os.environ['GCS_TOKEN_BUCKET']).blob('dbt/prod/manifest.json')
+          assert b.exists()
+          b.download_to_filename('prod_state/manifest.json')
+          " 2>/dev/null; then
+              echo "=== Found prod manifest in GCS: running BigQuery zero-copy clone + Slim CI ==="
+              dbt clone --profiles-dir . --target dev --state prod_state --full-refresh || true
+              dbt build --profiles-dir . --target dev --select state:modified+ --state prod_state
+              exit 0
+            fi
+          fi
+
+          dbt build --profiles-dir . --target "${DBT_TARGET}"
+
+          if [ "${DBT_TARGET}" = "prod" ] && [ -n "${GCS_TOKEN_BUCKET:-}" ] && [ -f "target/manifest.json" ]; then
+            python3 -c "
+          import os
+          from google.cloud import storage
+          storage.Client().bucket(os.environ['GCS_TOKEN_BUCKET']).blob('dbt/prod/manifest.json').upload_from_filename('target/manifest.json')
+          print('Uploaded prod manifest.json to GCS.')
+          " || true
+          fi
+
+      - name: "Sync AI Copilot DuckDB, Preset Cache & Deploy Cloud Function (main only)"
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && (steps.changes.outputs.copilot == 'true' || steps.changes.outputs.dbt == 'true')
+        env:
+          BIGQUERY_DATASET: dbt_prod
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          pip install --quiet pandas pyarrow google-cloud-storage -r deploy/gcp/chat_proxy/requirements.txt
+          python scripts/export_copilot_duckdb.py
+          python scripts/warm_copilot_cache.py
+
+          if [ -n "${GCS_TOKEN_BUCKET:-}" ]; then
+            python3 -c "
+          import os
+          from google.cloud import storage
+          bucket = storage.Client().bucket(os.environ['GCS_TOKEN_BUCKET'])
+          bucket.blob('copilot/copilot_warehouse.duckdb').upload_from_filename('deploy/gcp/chat_proxy/copilot_warehouse.duckdb')
+          bucket.blob('copilot/copilot_preset_cache.json').upload_from_filename('deploy/gcp/chat_proxy/copilot_preset_cache.json')
+          print('Uploaded Copilot artifacts to GCS.')
+          " || true
+          fi
+
+          if [ "${{ steps.changes.outputs.copilot }}" = "true" ]; then
+            ENV_VARS="GCP_PROJECT_ID=${GCP_PROJECT_ID},BIGQUERY_DATASET=dbt_prod"
+            if [ -n "${GCS_TOKEN_BUCKET:-}" ]; then
+              ENV_VARS="${ENV_VARS},GCS_TOKEN_BUCKET=${GCS_TOKEN_BUCKET}"
+            fi
+            if [ -n "${GEMINI_API_KEY:-}" ]; then
+              ENV_VARS="${ENV_VARS},GEMINI_API_KEY=${GEMINI_API_KEY}"
+            fi
+
+            gcloud functions deploy cockpit-ai-chat \
+              --gen2 \
+              --project="${GCP_PROJECT_ID}" \
+              --region="${GCP_REGION}" \
+              --runtime=python311 \
+              --source=deploy/gcp/chat_proxy \
+              --entry-point=chat_handler \
+              --trigger-http \
+              --allow-unauthenticated \
+              --service-account="${GCP_SA_EMAIL}" \
+              --update-env-vars="${ENV_VARS}" \
+              --memory=512Mi \
+              --timeout=60s \
+              --max-instances=5
+          fi
+
+      - name: "Gate 3: URL Routing Tests & Evidence Build"
+        if: steps.changes.outputs.dashboard == 'true'
+        env:
+          EVIDENCE_SOURCE__analytics__project_id: ${{ env.GCP_PROJECT_ID }}
+          EVIDENCE_SOURCE__analytics__dataset: ${{ env.BQ_DATASET }}
+        run: |
           cd evidence_dashboard
+          npm run test:url
+          npm ci
+
+          mkdir -p sources/analytics
+          printf "name: analytics\ntype: bigquery\noptions:\n  authenticator: gcloud-cli\n  project_id: ${GCP_PROJECT_ID}\n  dataset: ${BQ_DATASET}\n" > sources/analytics/connection.yaml
           sed -i '/^deployment:/,$d' evidence.config.yaml
-          printf "\ndeployment:\n  basePath: /${{ github.event.repository.name }}\n" >> evidence.config.yaml
+          printf "\ndeployment:\n  basePath: ${BASE_PATH}\n" >> evidence.config.yaml
+
           npm run sources
           npm run build
-          if [ ! -f "build/overview/index.html" ]; then
-            echo "❌ FATAL: build/overview/index.html was not generated. Prerender failed!"
-            exit 1
-          fi
 
-      - name: Create .nojekyll file
-        run: touch evidence_dashboard/build/.nojekyll
+          for page in "build/index.html" "build/overview/index.html" "build/sales/index.html" "build/operations/index.html"; do
+            if [ ! -f "$page" ]; then
+              echo "❌ FATAL: $page was not generated. Prerender failed!"
+              exit 1
+            fi
+          done
+          touch build/.nojekyll
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy Production Site (main -> root)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.changes.outputs.dashboard == 'true'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: evidence_dashboard/build
           branch: gh-pages
+          clean-exclude: |
+            staging
+            staging/**
+
+      - name: Deploy Staging Site (dev -> /staging)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev' && steps.changes.outputs.dashboard == 'true'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: evidence_dashboard/build
+          branch: gh-pages
+          target-folder: staging

@@ -27,11 +27,28 @@ print(val if isinstance(val, (str, int, float)) else '')
   echo "${result:-$default}"
 }
 
+# Reads a value from .dlt/config.toml given a dotted key path
+read_config() {
+  local path="$1"
+  local default="${2:-}"
+  local result
+  result=$($PYTHON_CMD -c "
+import tomlkit, functools
+data = tomlkit.load(open('.dlt/config.toml'))
+keys = '$path'.split('.')
+val = functools.reduce(lambda d, k: d.get(k, {}), keys, data)
+print(val if isinstance(val, (str, int, float)) else '')
+" 2>/dev/null) || result=""
+  echo "${result:-$default}"
+}
+
 PROJECT=$(read_secret "gcp.project_id")
 REGION=$(read_secret "gcp.region" "us-central1")
 BUCKET=$(read_secret "gcp.token_bucket")
 JOB=$(read_secret "gcp.cloud_run_job" "dlt-pipeline-job")
 GCLOUD=$(read_secret "gcp.gcloud_bin" "gcloud")
+DASHBOARD_BASE_PATH=$(read_config "dashboard.base_path" "")
+PREVIEW_PORT=$(read_config "dashboard.preview_port" "3000")
 
 show_help() {
   cat << 'HELP'
@@ -41,17 +58,28 @@ show_help() {
 Usage: bash pipeline.sh <command> [target] [options]
 
 Commands:
-  run <dev|prod>        Execute pipeline
-                        dev  : Full local ELT (APIs -> Postgres -> dbt)
-                        prod : Trigger remote Cloud Run Job on GCP
+  run <local|dev|prod>  Execute pipeline
+                        local/dev : Full local ELT (APIs -> Postgres -> dbt local)
+                        prod      : Trigger remote Cloud Run Job on GCP
 
-  dbt <dev|prod> [args] Run dbt models against chosen target
-                        Pass standard dbt flags (e.g. --select)
+  dbt <local|dev|prod> [args]
+                        Run dbt models against chosen target
+                        local : Local PostgreSQL (schema: dbt_prod)
+                        dev   : Google BigQuery Staging (dataset: dbt_dev)
+                        prod  : Google BigQuery Production (dataset: dbt_prod)
 
-  dashboard <dev|prod>  Launch Evidence.dev BI dashboard
-                        dev  : Connected to Local Postgres
-                        prod : Connected to Google BigQuery
-                        --build : Compile static production bundle
+  dbt-clone             Zero-copy clone BigQuery dbt_prod into dbt_dev (--full-refresh)
+  verify                Run 6-gate pre-push full-stack verification against dbt_dev
+
+  dashboard <local|dev|prod> [options]
+                        Launch Evidence.dev BI dashboard
+                        local : Connected to Local Postgres
+                        dev   : Connected to Google BigQuery (dbt_dev)
+                        prod  : Connected to Google BigQuery (dbt_prod)
+                        --build        : Run URL routing tests, build static bundle & preview
+                        --skip-sources : Skip re-querying warehouse when cached sources match target
+                        --base-path    : Build & preview with GitHub Pages repo subpath (/repo/overview/)
+                        --refresh      : Force re-pull of Evidence sources before dev/build
 
   deploy <target>       Deploy system components to GCP
                         job       : Build Docker image & update Cloud Run Job
@@ -59,6 +87,8 @@ Commands:
                         all       : Deploy both job and dashboard
 
   copilot               Synchronize BigQuery marts to in-memory DuckDB & warm cache
+  dagster [local|dev|prod]
+                        Launch Dagster Asset UI on http://127.0.0.1:3001
   auth                  Re-authorize SaaS OAuth tokens & sync to GCS
   help                  Show this help
 
@@ -79,7 +109,7 @@ generate_evidence_connection() {
   local connection_dir="$PROJECT_ROOT/evidence_dashboard/sources/analytics"
   mkdir -p "$connection_dir"
 
-  if [ "$target" = "dev" ]; then
+  if [ "$target" = "local" ]; then
     local pg_host=$(read_secret "destination.postgres.credentials.host" "localhost")
     local pg_port=$(read_secret "destination.postgres.credentials.port" "5432")
     local pg_db=$(read_secret "destination.postgres.credentials.database" "wsltest_db")
@@ -95,6 +125,15 @@ options:
   user: $pg_user
   ssl: false
 EOF
+  elif [ "$target" = "dev" ]; then
+    cat << EOF > "$connection_dir/connection.yaml"
+name: analytics
+type: bigquery
+options:
+  authenticator: gcloud-cli
+  project_id: ${GCP_PROJECT_ID:-$PROJECT}
+  dataset: dbt_dev
+EOF
   else
     cat << EOF > "$connection_dir/connection.yaml"
 name: analytics
@@ -109,7 +148,7 @@ EOF
 
 run_local_pipeline() {
   echo "======================================================================"
-  echo " 🛠️  RUNNING LOCAL PIPELINE (DEV ENV -> POSTGRES)"
+  echo " 🛠️  RUNNING LOCAL PIPELINE (LOCAL ENV -> POSTGRES)"
   echo "======================================================================"
   export PIPELINE__DESTINATION="postgres"
   export GCS_TOKEN_BUCKET="$BUCKET"
@@ -121,16 +160,16 @@ run_local_pipeline() {
   $PYTHON_CMD -m runners.run_all
 
   echo ""
-  echo "=== Step 2: Running dbt Transform & Test (target: dev) ==="
+  echo "=== Step 2: Running dbt Transform & Test (target: local) ==="
   cd "$PROJECT_ROOT/dbt_transform"
   $DBT_CMD deps --profiles-dir .
-  $DBT_CMD seed --profiles-dir . --target dev
-  $DBT_CMD run --profiles-dir . --target dev
-  $DBT_CMD test --profiles-dir . --target dev
+  $DBT_CMD seed --profiles-dir . --target local
+  $DBT_CMD run --profiles-dir . --target local
+  $DBT_CMD test --profiles-dir . --target local
 
   echo ""
   echo "======================================================================"
-  echo " ✅ LOCAL DEV PIPELINE COMPLETED SUCCESSFULLY"
+  echo " ✅ LOCAL PIPELINE COMPLETED SUCCESSFULLY"
   echo "======================================================================"
 }
 
@@ -203,16 +242,16 @@ COMMAND="${1:-help}"
 
 case "$COMMAND" in
   run)
-    TARGET="${2:-dev}"
+    TARGET="${2:-local}"
     case "$TARGET" in
-      dev)
+      local|dev)
         run_local_pipeline
         ;;
       prod)
         run_remote_pipeline
         ;;
       *)
-        echo "❌ Error: Invalid target '$TARGET'. Use 'bash pipeline.sh run <dev|prod>'."
+        echo "❌ Error: Invalid target '$TARGET'. Use 'bash pipeline.sh run <local|dev|prod>'."
         exit 1
         ;;
     esac
@@ -246,7 +285,7 @@ case "$COMMAND" in
     esac
     ;;
 
-  dev)
+  local|dev)
     run_local_pipeline
     ;;
 
@@ -260,12 +299,12 @@ case "$COMMAND" in
     ;;
 
   dbt)
-    TARGET="${2:-dev}"
+    TARGET="${2:-local}"
     shift 2 || shift 1
     EXTRA_ARGS=("$@")
 
-    if [ "$TARGET" != "dev" ] && [ "$TARGET" != "prod" ]; then
-      echo "❌ Error: Invalid target '$TARGET'. Must be 'dev' or 'prod'."
+    if [ "$TARGET" != "local" ] && [ "$TARGET" != "dev" ] && [ "$TARGET" != "prod" ]; then
+      echo "❌ Error: Invalid target '$TARGET'. Must be 'local', 'dev', or 'prod'."
       exit 1
     fi
 
@@ -274,7 +313,7 @@ case "$COMMAND" in
     echo "======================================================================"
 
     export GCP_PROJECT_ID="$PROJECT"
-    if [ "$TARGET" = "dev" ]; then export_pg_env; fi
+    if [ "$TARGET" = "local" ]; then export_pg_env; fi
 
     cd "$PROJECT_ROOT/dbt_transform"
     $DBT_CMD deps --profiles-dir .
@@ -286,11 +325,185 @@ case "$COMMAND" in
     echo "======================================================================"
     ;;
 
+  dbt-clone)
+    echo "======================================================================"
+    echo " 🧬 ZERO-COPY CLONING BIGQUERY dbt_prod -> dbt_dev"
+    echo "======================================================================"
+    export GCP_PROJECT_ID="$PROJECT"
+    export DBT_BIGQUERY_DATASET="dbt_dev"
+    if [ -f "$PROJECT_ROOT/gcp-credentials.json" ]; then
+      export GOOGLE_APPLICATION_CREDENTIALS="$PROJECT_ROOT/gcp-credentials.json"
+    fi
+
+    cd "$PROJECT_ROOT/dbt_transform"
+    $DBT_CMD deps --profiles-dir .
+    mkdir -p prod_state
+    $PYTHON_CMD -c "
+from google.cloud import storage
+bucket = storage.Client().bucket('$BUCKET')
+blob = bucket.blob('dbt/prod/manifest.json')
+if not blob.exists():
+    raise SystemExit('Prod manifest not found in gs://$BUCKET/dbt/prod/manifest.json. Run a prod dbt build first.')
+blob.download_to_filename('prod_state/manifest.json')
+print('Downloaded prod manifest.json from GCS.')
+"
+    $DBT_CMD clone --profiles-dir . --target dev --state prod_state --full-refresh
+    echo "======================================================================"
+    echo " ✅ ZERO-COPY CLONE COMPLETED (TARGET: dbt_dev)"
+    echo "======================================================================"
+    ;;
+
+  verify)
+    echo "======================================================================"
+    echo " 🛡️  RUNNING 6-GATE FULL-STACK PRE-PUSH VERIFICATION (TARGET: dbt_dev)"
+    echo "======================================================================"
+    export GCP_PROJECT_ID="$PROJECT"
+    export DBT_BIGQUERY_DATASET="dbt_dev"
+    export BIGQUERY_DATASET="dbt_dev"
+    if [ -f "$PROJECT_ROOT/gcp-credentials.json" ]; then
+      export GOOGLE_APPLICATION_CREDENTIALS="$PROJECT_ROOT/gcp-credentials.json"
+    fi
+
+    echo ""
+    echo "=== [Gate 1/6] Secret Hygiene & Network Binding Scan ==="
+    $PYTHON_CMD "$PROJECT_ROOT/scripts/verify_security.py"
+
+    echo ""
+    echo "=== [Gate 2/6] Dagster Asset Graph & Job Resolution ==="
+    $PYTHON_CMD -c "
+from orchestration.definitions import defs
+assets = list(defs.resolve_asset_graph().get_all_asset_keys())
+job = defs.resolve_job_def('prod_pipeline_job')
+print(f'✓ Gate 2 Passed: {len(assets)} Dagster assets and {job.name} resolved cleanly.')
+"
+
+    echo ""
+    echo "=== [Gate 3/6] Sandbox Warehouse Build & Data Tests (BigQuery dbt_dev) ==="
+    cd "$PROJECT_ROOT/dbt_transform"
+    $DBT_CMD deps --profiles-dir .
+    if [ -n "$BUCKET" ]; then
+      mkdir -p prod_state
+      if $PYTHON_CMD -c "
+from google.cloud import storage
+blob = storage.Client().bucket('$BUCKET').blob('dbt/prod/manifest.json')
+assert blob.exists()
+blob.download_to_filename('prod_state/manifest.json')
+" 2>/dev/null; then
+        echo "Zero-copy cloning dbt_prod -> dbt_dev (--full-refresh) & building modified models..."
+        $DBT_CMD clone --profiles-dir . --target dev --state prod_state --full-refresh || true
+        $DBT_CMD build --profiles-dir . --target dev --select state:modified+ --state prod_state
+      else
+        $DBT_CMD build --profiles-dir . --target dev
+      fi
+    else
+      $DBT_CMD build --profiles-dir . --target dev
+    fi
+    echo "✓ Gate 3 Passed: BigQuery dbt_dev models and data tests succeeded."
+
+    echo ""
+    echo "=== [Gate 4/6] AI Copilot DuckDB Export (dbt_dev) & Live Proxy /health ==="
+    cd "$PROJECT_ROOT"
+    $PYTHON_CMD scripts/export_copilot_duckdb.py
+    $PYTHON_CMD -c "
+import sys
+sys.path.insert(0, 'deploy/gcp/chat_proxy')
+import duckdb_executor
+res = duckdb_executor.run_analytical_query('SELECT count(*) as cnt FROM fct_executive_cockpit')
+assert 'cnt' in res, f'Unexpected DuckDB result: {res}'
+print('✓ Local DuckDB query against dbt_dev replica succeeded:', res)
+"
+    BACKEND_URL=$(grep -oE "https://[^']+" "$PROJECT_ROOT/evidence_dashboard/components/CockpitDiagnosticAiCard.svelte" | head -n 1 || echo "")
+    if [ -n "$BACKEND_URL" ]; then
+      HEALTH_URL="$(echo "$BACKEND_URL" | sed 's|/chat$||')/health"
+      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_URL" || echo "000")
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "❌ Gate 4 Failed: Cloud Function health check at $HEALTH_URL returned HTTP $HTTP_CODE."
+        exit 1
+      fi
+      echo "✓ Gate 4 Passed: AI Copilot DuckDB replica and live /health (HTTP 200) verified."
+    fi
+
+    echo ""
+    echo "=== [Gate 5/6] Automated URL Routing & Slicer Query-String Test Suite ==="
+    cd "$PROJECT_ROOT/evidence_dashboard"
+    npm run test:url
+    echo "✓ Gate 5 Passed: All URL routing and basePath combination tests succeeded."
+
+    echo ""
+    echo "=== [Gate 6/6] Evidence Static Prerender Build (against BigQuery dbt_dev) ==="
+    export EVIDENCE_SOURCE__analytics__project_id="$PROJECT"
+    export EVIDENCE_SOURCE__analytics__dataset="dbt_dev"
+    generate_evidence_connection "dev"
+    npm run sources
+    echo "dev" > "$PROJECT_ROOT/evidence_dashboard/.evidence/.last_target"
+
+    if [ -n "$DASHBOARD_BASE_PATH" ]; then
+      cp evidence.config.yaml /tmp/evidence.config.yaml.bak
+      trap 'cp -f /tmp/evidence.config.yaml.bak "$PROJECT_ROOT/evidence_dashboard/evidence.config.yaml" 2>/dev/null || true; rm -f /tmp/evidence.config.yaml.bak' EXIT INT TERM
+      sed -i '/^deployment:/,$d' evidence.config.yaml
+      printf "\ndeployment:\n  basePath: %s\n" "$DASHBOARD_BASE_PATH" >> evidence.config.yaml
+    fi
+
+    npm run build
+
+    if [ -n "$DASHBOARD_BASE_PATH" ]; then
+      cp -f /tmp/evidence.config.yaml.bak evidence.config.yaml
+      rm -f /tmp/evidence.config.yaml.bak
+      trap - EXIT INT TERM
+    fi
+
+    for page in "build/index.html" "build/overview/index.html" "build/sales/index.html" "build/operations/index.html"; do
+      if [ ! -f "$page" ]; then
+        echo "❌ Gate 6 Failed: $page was not generated."
+        exit 1
+      fi
+    done
+    echo "✓ Gate 6 Passed: All 4 dashboard pages prerendered cleanly against dbt_dev."
+    echo ""
+    echo "======================================================================"
+    echo " ✅ ALL 6 PRE-PUSH VERIFICATION GATES PASSED (100% READY TO PUSH)"
+    echo "======================================================================"
+
+    if [ "${2:-}" != "--no-preview" ]; then
+      if [ -n "$DASHBOARD_BASE_PATH" ]; then
+        BASE_SLUG="${DASHBOARD_BASE_PATH#/}"
+        mkdir -p "/tmp/evidence_preview/$(dirname "$BASE_SLUG")"
+        ln -sfn "$PROJECT_ROOT/evidence_dashboard/build" "/tmp/evidence_preview/$BASE_SLUG"
+        PREVIEW_URL="http://127.0.0.1:${PREVIEW_PORT}${DASHBOARD_BASE_PATH}/overview/"
+        PREVIEW_DIR="/tmp/evidence_preview"
+      else
+        PREVIEW_URL="http://127.0.0.1:${PREVIEW_PORT}/overview/"
+        PREVIEW_DIR="$PROJECT_ROOT/evidence_dashboard/build"
+      fi
+      echo ""
+      echo " Preview URL: $PREVIEW_URL"
+      echo " Press Ctrl+C to stop the preview server."
+      echo "======================================================================"
+      trap 'echo ""; echo "✓ Preview server stopped."; exit 0' INT TERM
+      python3 -m http.server "$PREVIEW_PORT" --bind 127.0.0.1 --directory "$PREVIEW_DIR"
+    fi
+    ;;
+
   dashboard)
     TARGET="${2:-prod}"
+    shift 2 || shift 1 || true
 
-    if [ "$TARGET" != "dev" ] && [ "$TARGET" != "prod" ]; then
-      echo "❌ Error: Invalid target '$TARGET'. Must be 'dev' or 'prod'."
+    BUILD_MODE=false
+    SKIP_SOURCES=false
+    FORCE_REFRESH=false
+    USE_BASE_PATH=true
+    for arg in "$@"; do
+      case "$arg" in
+        --build) BUILD_MODE=true ;;
+        --skip-sources) SKIP_SOURCES=true ;;
+        --refresh) FORCE_REFRESH=true ;;
+        --base-path) USE_BASE_PATH=true ;;
+        --no-base-path) USE_BASE_PATH=false ;;
+      esac
+    done
+
+    if [ "$TARGET" != "local" ] && [ "$TARGET" != "dev" ] && [ "$TARGET" != "prod" ]; then
+      echo "❌ Error: Invalid target '$TARGET'. Must be 'local', 'dev', or 'prod'."
       exit 1
     fi
 
@@ -298,21 +511,70 @@ case "$COMMAND" in
     echo " 📊 LAUNCHING EVIDENCE DASHBOARD (TARGET: $TARGET)"
     echo "======================================================================"
 
-    if [ "$TARGET" = "dev" ]; then
+    if [ "$TARGET" = "local" ]; then
       export_pg_env
     else
       if [ -f "$PROJECT_ROOT/gcp-credentials.json" ]; then
         export GOOGLE_APPLICATION_CREDENTIALS="$PROJECT_ROOT/gcp-credentials.json"
       fi
+      export EVIDENCE_SOURCE__analytics__project_id="$PROJECT"
+      if [ "$TARGET" = "dev" ]; then
+        export EVIDENCE_SOURCE__analytics__dataset="dbt_dev"
+      else
+        export EVIDENCE_SOURCE__analytics__dataset="dbt_prod"
+      fi
     fi
     generate_evidence_connection "$TARGET"
 
     cd "$PROJECT_ROOT/evidence_dashboard"
+    npm run test:url
 
-    if [ "${3:-}" = "--build" ]; then
+    LAST_TARGET_FILE="$PROJECT_ROOT/evidence_dashboard/.evidence/.last_target"
+    mkdir -p "$(dirname "$LAST_TARGET_FILE")"
+    LAST_TARGET=$(cat "$LAST_TARGET_FILE" 2>/dev/null || echo "")
+
+    NEED_SOURCES=false
+    if [ "$FORCE_REFRESH" = true ] || [ "$LAST_TARGET" != "$TARGET" ]; then
+      NEED_SOURCES=true
+    elif [ "$BUILD_MODE" = true ] && [ "$SKIP_SOURCES" = false ]; then
+      NEED_SOURCES=true
+    fi
+
+    if [ "$SKIP_SOURCES" = true ] && [ "$LAST_TARGET" = "$TARGET" ]; then
+      NEED_SOURCES=false
+    fi
+
+    if [ "$NEED_SOURCES" = true ]; then
+      echo "Refreshing Evidence sources for target '$TARGET'..."
       npm run sources
+      echo "$TARGET" > "$LAST_TARGET_FILE"
+    else
+      echo "Reusing cached Evidence sources for target '$TARGET' (pass --refresh to re-query)."
+    fi
+
+    if [ "$BUILD_MODE" = true ]; then
+      if [ "$USE_BASE_PATH" = true ] && [ -n "$DASHBOARD_BASE_PATH" ]; then
+        cp evidence.config.yaml /tmp/evidence.config.yaml.bak
+        trap 'cp -f /tmp/evidence.config.yaml.bak "$PROJECT_ROOT/evidence_dashboard/evidence.config.yaml" 2>/dev/null || true; rm -f /tmp/evidence.config.yaml.bak' EXIT INT TERM
+        sed -i '/^deployment:/,$d' evidence.config.yaml
+        printf "\ndeployment:\n  basePath: %s\n" "$DASHBOARD_BASE_PATH" >> evidence.config.yaml
+      fi
+
       npm run build
-      npm run preview
+
+      if [ "$USE_BASE_PATH" = true ] && [ -n "$DASHBOARD_BASE_PATH" ]; then
+        cp -f /tmp/evidence.config.yaml.bak evidence.config.yaml
+        rm -f /tmp/evidence.config.yaml.bak
+        trap - EXIT INT TERM
+        BASE_SLUG="${DASHBOARD_BASE_PATH#/}"
+        mkdir -p "/tmp/evidence_preview/$(dirname "$BASE_SLUG")"
+        ln -sfn "$PROJECT_ROOT/evidence_dashboard/build" "/tmp/evidence_preview/$BASE_SLUG"
+        echo "Serving subpath preview at: http://127.0.0.1:${PREVIEW_PORT}${DASHBOARD_BASE_PATH}/overview/"
+        python3 -m http.server "$PREVIEW_PORT" --bind 127.0.0.1 --directory /tmp/evidence_preview
+      else
+        echo "Serving preview at: http://127.0.0.1:${PREVIEW_PORT}/overview/"
+        npm run preview
+      fi
     else
       npm run dev
     fi
@@ -330,6 +592,31 @@ case "$COMMAND" in
     echo "======================================================================"
     ;;
 
+  dagster)
+    TARGET="${2:-dev}"
+    if [ "$TARGET" != "local" ] && [ "$TARGET" != "dev" ] && [ "$TARGET" != "prod" ]; then
+      echo "❌ Error: Invalid target '$TARGET'. Must be 'local', 'dev', or 'prod'."
+      exit 1
+    fi
+
+    export DAGSTER_TARGET="$TARGET"
+    export GCP_PROJECT_ID="$PROJECT"
+    export DAGSTER_HOME="$PROJECT_ROOT/.dagster_home"
+    mkdir -p "$DAGSTER_HOME"
+
+    if [ "$TARGET" = "local" ]; then
+      export_pg_env
+    elif [ -f "$PROJECT_ROOT/gcp-credentials.json" ]; then
+      export GOOGLE_APPLICATION_CREDENTIALS="$PROJECT_ROOT/gcp-credentials.json"
+    fi
+
+    echo "======================================================================"
+    echo " 🧭 LAUNCHING DAGSTER ASSET ORCHESTRATOR (TARGET: $TARGET)"
+    echo " UI: http://127.0.0.1:3001"
+    echo "======================================================================"
+    PATH="$PROJECT_ROOT/.venv/bin:$PATH" "$PROJECT_ROOT/.venv/bin/dagster" dev -m orchestration.definitions -h 127.0.0.1 -p 3001
+    ;;
+
   auth)
     echo "======================================================================"
     echo " 🔑 RUNNING INTERACTIVE OAUTH 2.0 RE-AUTHORIZATION"
@@ -338,48 +625,48 @@ case "$COMMAND" in
     ;;
 
   cloud)
-    # Docker/Cloud Run entrypoint (used by container CMD)
-    DBT_TARGET="dev"
+    # Docker/Cloud Run entrypoint: executes the Dagster asset job and sends Slack notification
     if [ "${PIPELINE__DESTINATION:-postgres}" = "bigquery" ]; then
-      DBT_TARGET="prod"
+      DBT_TARGET="${DBT_TARGET:-prod}"
+      DAGSTER_JOB="prod_pipeline_job"
+    else
+      DBT_TARGET="${DBT_TARGET:-local}"
+      DAGSTER_JOB="full_elt_job"
+      export_pg_env
     fi
+
+    export DAGSTER_TARGET="$DBT_TARGET"
+    export GCP_PROJECT_ID="$PROJECT"
+    export DAGSTER_HOME="/tmp/dagster_home"
+    mkdir -p "$DAGSTER_HOME"
 
     LOG_FILE="/tmp/pipeline_run.log"
     echo "" > "$LOG_FILE"
 
-    echo "=== [1/3] Running Extract & Load (dlt) ===" | tee -a "$LOG_FILE"
-    $PYTHON_CMD -m runners.run_all 2>&1 | tee -a "$LOG_FILE"
-    DLT_EXIT_CODE=${PIPESTATUS[0]}
+    echo "=== [1/2] Installing dbt Packages ===" | tee -a "$LOG_FILE"
+    (cd "$PROJECT_ROOT/dbt_transform" && $DBT_CMD deps --profiles-dir .) 2>&1 | tee -a "$LOG_FILE"
 
-    echo "=== [2/3] Installing dbt Packages ===" | tee -a "$LOG_FILE"
-    cd "$PROJECT_ROOT/dbt_transform"
-    $DBT_CMD deps --profiles-dir . 2>&1 | tee -a "$LOG_FILE"
-
-    echo "=== [3/3] Running and Testing dbt Models (Target: $DBT_TARGET) ===" | tee -a "$LOG_FILE"
-    $DBT_CMD seed --profiles-dir . --target "$DBT_TARGET" 2>&1 | tee -a "$LOG_FILE"
-    $DBT_CMD run --profiles-dir . --target "$DBT_TARGET" 2>&1 | tee -a "$LOG_FILE"
-    DBT_RUN_EXIT_CODE=${PIPESTATUS[0]}
-
-    $DBT_CMD test --profiles-dir . --target "$DBT_TARGET" 2>&1 | tee -a "$LOG_FILE"
-    DBT_TEST_EXIT_CODE=${PIPESTATUS[0]}
-
-    if [ $DBT_TEST_EXIT_CODE -eq 0 ]; then
-      echo "=== Pre-warming Diagnostic Copilot AI Cache ===" | tee -a "$LOG_FILE"
-      $PYTHON_CMD scripts/warm_copilot_cache.py 2>&1 | tee -a "$LOG_FILE" || true
-    fi
+    echo "=== [2/2] Executing Dagster Pipeline Job ($DAGSTER_JOB, Target: $DAGSTER_TARGET) ===" | tee -a "$LOG_FILE"
+    $PYTHON_CMD -c "
+from orchestration.definitions import defs
+job = defs.resolve_job_def('$DAGSTER_JOB')
+result = job.execute_in_process()
+raise SystemExit(0 if result.success else 1)
+" 2>&1 | tee -a "$LOG_FILE"
+    DAGSTER_EXIT_CODE=${PIPESTATUS[0]}
 
     cd "$PROJECT_ROOT"
     $PYTHON_CMD -m utils.slack_notifier \
-      --dlt-code "$DLT_EXIT_CODE" \
-      --dbt-code "$DBT_RUN_EXIT_CODE" \
-      --test-code "$DBT_TEST_EXIT_CODE" \
+      --dlt-code "$DAGSTER_EXIT_CODE" \
+      --dbt-code "$DAGSTER_EXIT_CODE" \
+      --test-code "$DAGSTER_EXIT_CODE" \
       --log-file "$LOG_FILE"
 
-    if [ $DLT_EXIT_CODE -ne 0 ] || [ $DBT_RUN_EXIT_CODE -ne 0 ] || [ $DBT_TEST_EXIT_CODE -ne 0 ]; then
-      echo "=== Pipeline Execution Completed with Errors ==="
+    if [ $DAGSTER_EXIT_CODE -ne 0 ]; then
+      echo "=== Dagster Pipeline Execution Completed with Errors ==="
       exit 1
     else
-      echo "=== Pipeline Execution Completed Successfully ==="
+      echo "=== Dagster Pipeline Execution Completed Successfully ==="
       exit 0
     fi
     ;;
