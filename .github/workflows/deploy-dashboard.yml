@@ -15,6 +15,7 @@ on:
       - 'orchestration/**'
       - 'utils/**'
       - 'Dockerfile'
+      - '.github/workflows/deploy-dashboard.yml'
   pull_request:
     branches:
       - dev
@@ -24,6 +25,7 @@ on:
       - 'evidence_dashboard/**'
       - 'deploy/**'
       - 'scripts/**'
+      - '.github/workflows/deploy-dashboard.yml'
   workflow_dispatch:
 
 concurrency:
