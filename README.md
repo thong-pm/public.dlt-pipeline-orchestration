@@ -1,14 +1,12 @@
 # Multi-Source SaaS ELT Pipeline & BI Dashboard
 
-A code-first data pipeline integrating **HubSpot**, **Xero**, **Shopify**, and **Procore** into **Google BigQuery** (Cloud) and **PostgreSQL** (Local), orchestrated with `Dagster`, modeled with `dbt Core`, provisioned with `Terraform`, and visualized using `Evidence.dev`.
+A code-first data pipeline integrating **HubSpot**, **Xero**, **Shopify**, and **Procore** into **Google BigQuery** (Cloud) and **PostgreSQL** (Local), orchestrated with `Dagster`, modeled with `dbt Core`, defined in `Terraform`, and visualized using `Evidence.dev`.
 
 ![Pipeline Architecture](docs/assets/pipeline_architecture.png)
 
 ---
 
 ## Operational Context
-
-This consolidates real-world architectures from multiple real life projects (cross-SaaS reconciliation, ephemeral token vaults, BigQuery dbt modeling, and version-controlled BI dashboard development, ...) into a single showcase project.
 
 ### The Business Scenario
 A modular storage, millwork, and outdoor-structures manufacturer that sells kits online through Shopify, sells to builders and dealers through HubSpot, and installs larger orders on site.
@@ -47,9 +45,9 @@ Shopify Orders (Parallel D2C Channel)
 | **HubSpot CRM** | Inbound leads, contracts & pipeline | Deals, Companies, Contacts | Live API + Backfill |
 | **Procore** | Construction & project delivery | Projects, Companies, Users | Live API + Backfill |
 | **Xero** | Progress billings & receivables | Invoices, Contacts, Line Items | Live API + Backfill |
-| **Shopify** | Online modular storage & joinery kits | Products, Variants, Orders | Live API |
+| **Shopify** | Online modular storage & joinery kits | Products, Variants | Live API |
 
-* **Data Coverage**: Real SaaS API records start from **June 2026**. Pre-June 2026 history is backfilled using phased project estimates tied to the 14 client accounts in `seed_project_mapping.csv`.
+* **Data Coverage**: Live SaaS API records are combined with historical backfill rows anchored to `seed_project_mapping.csv`.
 
 ---
 
@@ -94,25 +92,21 @@ cp .dlt/secrets.toml.example .dlt/secrets.toml
 
 ### 2. Unified Pipeline CLI (`pipeline.sh`)
 
-All local and cloud operations are managed through `./pipeline.sh`:
+Run `bash pipeline.sh help` for all commands. The two most used day-to-day commands:
 
 ```bash
-# Local ELT, Dagster UI & Modeling
-bash pipeline.sh verify                       # Run all 6 pre-push verification gates against BigQuery dbt_dev
-bash pipeline.sh dagster <local|dev|prod>     # Launch Dagster Asset UI on http://127.0.0.1:3001
-bash pipeline.sh run local                    # Full local ELT (APIs -> Postgres -> dbt local)
-bash pipeline.sh dbt <local|dev|prod>         # Run dbt models (Postgres local, BigQuery dbt_dev, or dbt_prod)
-bash pipeline.sh dbt-clone                    # Zero-copy clone BigQuery dbt_prod into dbt_dev (--full-refresh)
+bash pipeline.sh verify                                # Run all 6 pre-push gates against BigQuery dbt_dev + launch preview
+bash pipeline.sh dashboard prod --build --skip-sources # Fast UI-only build & local preview without re-querying BigQuery
+```
 
-# BI Dashboard (Evidence.dev)
-bash pipeline.sh dashboard <local|dev|prod>   # Launch Evidence dev server (auto-refreshes on target change)
-bash pipeline.sh dashboard prod --build --skip-sources  # Fast static build & preview without re-querying BQ
-bash pipeline.sh dashboard prod --build --base-path     # Preview with exact GitHub Pages /<repo>/ subpath
+---
 
-# Staging Verification, Cloud Job & OAuth
-bash deploy/deploy_all.sh                     # Verify gates on dbt_dev (or pass --prod for dbt_prod)
-bash pipeline.sh deploy job                   # Build Docker image & update Cloud Run ingestion job
-bash pipeline.sh auth                         # Re-authorize SaaS OAuth tokens & sync to GCS
+## CI/CD & Daily Refresh Flow
+
+```text
+Push to `dev` / PR -> Gitleaks + verify_security -> dbt clone (dbt_dev) -> URL tests + Evidence -> /staging/overview/
+Merge to `main`    -> Path-scoped deploys (Docker/Cloud Run, dbt_prod, Copilot GCS/Function)   -> /overview/
+Daily Cron (GCP)   -> Cloud Scheduler -> Cloud Run (Dagster `prod_pipeline_job`) -> BigQuery + GCS -> Slack
 ```
 
 ---
@@ -132,51 +126,27 @@ bash pipeline.sh auth                         # Re-authorize SaaS OAuth tokens &
 
 ## Executive BI Dashboard (`Evidence.dev`)
 
-Built with Evidence.dev, featuring a white-label header component (`DashboardHeader.svelte`), automated URL routing & slicer state tests (`npm run test:url`), and 3 operational pages backed by 21 automated dbt data quality tests across PostgreSQL (`local`) and Google BigQuery (`dev` / `prod`):
+Live dashboard: **[Open Executive Cockpit](https://thong-pm.github.io/public.dlt-pipeline-orchestration/overview/)**
 
-### 1. Executive Cockpit (`/overview`)
-* **Monthly Cash Flow**: Billed revenue (Xero) vs. job costs (Procore) vs. realized gross profit line.
-* **Margin Fade**: Sold quote margin benchmark vs. actual realized gross margin with auto-scaled variance tracking.
-* **Forward Demand & Backlog**: Weighted CRM pipeline (HubSpot) vs. unbilled delivery schedule (Procore), reactive to MTD/QTD/YTD slicers.
-* **Lead to Cash Cycle Time**: Dynamic cycle days by business unit modulated by seasonal throughput factors.
-* **Diagnostic Health Flags**: Overdue accounts receivable (Xero), stalled deals (HubSpot), and active unbilled delivery backlog (Procore).
-* **AI Copilot Diagnostic Card**: Serverless Cloud Function Gen 2 proxy using Gemini 3.5 Flash Lite with in-memory DuckDB analytical querying, zero server logging, and pre-warmed cache for KPI drill-downs.
-
-### 2. Sales & Win-Loss (`/sales`)
-* Deal stage conversion rates, loss reason breakdown, and top client concentration.
-
-### 3. Operations & Delivery (`/operations`)
-* Procore project status tracking, active unbilled WIP completion, and Shopify inventory pricing.
+* **[Executive Cockpit (`/overview`)](https://thong-pm.github.io/public.dlt-pipeline-orchestration/overview/)**: Monthly cash flow, margin fade, forward demand vs. WIP backlog, lead-to-cash cycle time, and an AI Copilot card (DuckDB + Gemini).
+* **[Sales & Win-Loss (`/sales`)](https://thong-pm.github.io/public.dlt-pipeline-orchestration/sales/)**: Deal stage conversion, win/loss drivers, and top client concentration.
+* **[Operations & Delivery (`/operations`)](https://thong-pm.github.io/public.dlt-pipeline-orchestration/operations/)**: Procore project completion, active unbilled WIP, and Shopify catalog pricing.
 
 ---
 
-## Execution Modes & Known Gaps
-
-* **Local Development**: Runs via Python, Dagster UI (`http://127.0.0.1:3001`), or Docker against PostgreSQL (`local`) or BigQuery (`dbt_dev` via `dbt clone`).
-* **Cloud Execution**: Daily Cloud Scheduler triggers a one-shot GCP Cloud Run Job (`pipeline.sh cloud`) executing the Dagster `prod_pipeline_job` (`dlt` -> `dbt build` -> GCS `manifest.json` & AI Copilot DuckDB/cache upload -> Slack summary).
-* **CI/CD & Security Gates**: GitHub Actions (`deploy-dashboard.yml`) enforces `gitleaks` secret scanning, `scripts/verify_security.py`, `dbt clone` Slim CI, and `npm run test:url` with path-scoped jobs so UI-only changes skip warehouse and backend builds.
-
-### Dual-Engine Support (PostgreSQL & BigQuery)
-
-This pipeline is configured to run against **local PostgreSQL** (`local`) and **Google BigQuery** (`dev` / `prod`) from a single codebase:
-* **Why**: Validates that the `dlt` + `dbt` template is portable across both relational databases (for smaller deployments) and cloud columnar warehouses, while allowing local `dbt` runs to finish in ~3 seconds instead of waiting on cloud API latency.
-* **Cross-Dialect Mechanics**: Uses `dbt.type_*()` macros for type casting, `generate_surrogate_key()` for cross-engine hashing (`MD5` vs `TO_HEX(MD5)`), and dynamic source schema routing (`_raw` vs `_data`).
-* **When to Pivot**: Supporting two SQL engines requires avoiding native BigQuery functions (`UNNEST`, `SAFE_CAST`) and adds dialect testing overhead. For teams committed strictly to BigQuery, `dev` should target an isolated BigQuery dataset (`dbt_dev` or ephemeral PR schemas) to guarantee 100% dialect parity, or use **DuckDB** (`dbt-duckdb`) for local OLAP execution.
-
-### Known Limitations
-
+## Known Limitations
 * **Monolithic Secret File in Object Storage**: Static credentials (API keys, database passwords) and dynamic rotating OAuth tokens (Xero, Procore) are stored together in a single file (`.dlt/secrets.toml`) and synced via a GCS bucket (`GCS_TOKEN_BUCKET`).
   * *Operational Rationale*: Chosen to avoid GCP Secret Manager version accumulation and cost on rolling tokens without maintaining a dedicated database for intermittent batch runs.
   * *Blast Radius*: Read access to the GCS file grants access to all system credentials simultaneously rather than isolating secrets by IAM role.
   * *No Distributed Locking*: GCS object storage does not provide row-level locks or leases. Concurrency is limited to process-level thread locks (`threading.Lock()`) and single-task Cloud Run Job scheduling. Overlapping runs risk OAuth token replay invalidation.
   * *Abrupt Termination Risk*: If a container terminates abruptly (`SIGKILL`) after receiving a rotated OAuth token but before completing the GCS upload, the new token is lost and the stored token is invalidated by the provider, requiring manual developer re-authentication (`pipeline.sh auth`).
 * **CI Authentication via Static Service Account Key**: GitHub Actions currently authenticates to GCP using an encrypted JSON key (`secrets.GCP_SA_KEY`) rather than short-lived OIDC tokens via Workload Identity Federation (WIF).
-* **Repository Push Protection**: Enable GitHub Secret Scanning with Push Protection in repository settings (`Settings -> Code security`) to block accidental token commits server-side alongside CI `gitleaks`.
 
 ### Roadmap
 - [x] **Automated CI/CD**: Path-scoped GitHub Actions workflow with `gitleaks`, `verify_security.py`, `dbt clone` Slim CI, automated URL routing tests, and Cloud Run job image updates on `main`.
 - [x] **Python Orchestrator**: Unified `dlt`, `dbt`, AI Copilot cache sync, and Evidence builds under Dagster (`orchestration/definitions.py`).
-- [x] **Infrastructure as Code**: Provision BigQuery datasets (with 7-day TTL on `dbt_dev`), Cloud Run v2 Job, Cloud Scheduler, Artifact Registry, IAM, and GCS using Terraform (`infra/`).
+- [ ] **Infrastructure as Code (Apply)**: Terraform definitions authored in `infra/` (BigQuery datasets with 7-day `dbt_dev` TTL, Cloud Run v2 Job, Cloud Scheduler, Artifact Registry, IAM, GCS); `terraform import` and `apply` pending against live GCP.
+- [ ] **Repository Push Protection**: Enable GitHub Secret Scanning with Push Protection in repository settings (`Settings -> Code security`) alongside CI `gitleaks`.
 - [ ] **Keyless CI Authentication (Workload Identity Federation)**: Replace `secrets.GCP_SA_KEY` in GitHub Actions with GCP Workload Identity Federation and separate read-only vs. write service accounts.
 - [ ] **Local Pre-Commit Hooks**: Add `.pre-commit-config.yaml` with `gitleaks`, `ruff`, and `sqlfluff` for fast pre-commit feedback.
 - [ ] **Decoupled Secret & Token Storage**: Move static credentials to GCP Secret Manager environment variables and isolate dynamic OAuth tokens in a transactional store (e.g. Cloud SQL or Firestore) with row-level locks.
