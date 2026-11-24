@@ -201,7 +201,9 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.changes.outputs.job == 'true'
         run: |
           IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dlt-pipeline/pipeline"
-          gcloud builds submit --tag "${IMAGE}" --project "${GCP_PROJECT_ID}" --timeout=600
+          gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+          docker build -t "${IMAGE}" .
+          docker push "${IMAGE}"
           gcloud run jobs update "${CLOUD_RUN_JOB}" \
             --image "${IMAGE}" \
             --region "${GCP_REGION}" \
