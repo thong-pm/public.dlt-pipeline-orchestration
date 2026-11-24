@@ -3,7 +3,6 @@ title: "Executive Cockpit Dashboard"
 ---
 
 <script>
-  import { goto } from '$app/navigation';
   import DemoDisclaimer from '$lib/DemoDisclaimer.svelte';
   const DASHBOARD_DAY = '2026-06-15';
 
@@ -381,11 +380,7 @@ order by avg_days desc
 ```
 
 <!-- Header Navigation Bar -->
-<div class="flex flex-wrap gap-1.5 border-b border-gray-200 pb-1.5 mb-2.5 mt-0.5">
-  <button on:click={() => goto(buildNavUrl('/overview'))} class="px-3 py-1 rounded bg-[#0d9488] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer">Overview Cockpit</button>
-  <button on:click={() => goto(buildNavUrl('/sales'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Sales & Win-Loss</button>
-  <button on:click={() => goto(buildNavUrl('/operations'))} class="px-3 py-1 rounded bg-white text-gray-500 hover:text-gray-800 border border-gray-200 text-[10px] font-bold shadow-sm transition-all cursor-pointer">Operations & Vendors</button>
-</div>
+<DashboardHeader activePage="overview" {buildNavUrl} />
 
 <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-3.5">
   <!-- Left Side: Title & Slicers -->

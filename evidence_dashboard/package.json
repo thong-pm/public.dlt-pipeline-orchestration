@@ -4,11 +4,12 @@
   "scripts": {
     "build": "evidence build",
     "build:strict": "evidence build:strict",
-    "dev": "evidence dev --open /",
-    "test": "evidence build",
+    "dev": "evidence dev --host 127.0.0.1 --open /",
+    "test": "node scripts/test_url_routing.mjs && evidence build",
+    "test:url": "node scripts/test_url_routing.mjs",
     "sources": "evidence sources",
     "sources:strict": "evidence sources --strict",
-    "preview": "evidence preview"
+    "preview": "python3 -m http.server 3000 --bind 127.0.0.1 --directory build"
   },
   "engines": {
     "npm": ">=7.0.0",
