@@ -91,6 +91,30 @@ resource "google_project_iam_member" "run_invoker" {
   member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
 }
 
+resource "google_project_iam_member" "artifact_registry_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
+}
+
+resource "google_project_iam_member" "run_developer" {
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
+}
+
+resource "google_project_iam_member" "cloudfunctions_developer" {
+  project = var.project_id
+  role    = "roles/cloudfunctions.developer"
+  member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
+}
+
+resource "google_project_iam_member" "sa_user" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.pipeline_sa.email}"
+}
+
 # 7. Cloud Run v2 Job (One-Shot Dagster Production Runner)
 resource "google_cloud_run_v2_job" "elt_job" {
   name     = var.cloud_run_job_name
