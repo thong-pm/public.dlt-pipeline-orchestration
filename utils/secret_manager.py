@@ -110,3 +110,23 @@ def upload_secrets() -> bool:
     else:
         print("[GCS Vault] GCS_TOKEN_BUCKET is not set or storage client not loaded. Skipping upload.")
         return False
+
+
+def upload_file_to_gcs(local_path: str, blob_name: str) -> bool:
+    bucket_name = get_bucket_name()
+    if not os.path.exists(local_path):
+        print(f"[GCS Sync] Local file not found at {local_path}. Cannot upload.")
+        return False
+    if not storage or not bucket_name:
+        print("[GCS Sync] GCS_TOKEN_BUCKET is not set or storage client unavailable. Skipping upload.")
+        return False
+    try:
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        blob.upload_from_filename(local_path)
+        print(f"[GCS Sync] Uploaded {local_path} to gs://{bucket_name}/{blob_name}.")
+        return True
+    except Exception as e:
+        print(f"[GCS Sync] ERROR uploading {local_path} to GCS: {e}")
+        return False

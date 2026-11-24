@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from main import process_chat_query, stream_chat_query, build_cors_headers
 
 PORT = int(os.environ.get("CHAT_PROXY_PORT", 8090))
-HOST = os.environ.get("CHAT_PROXY_HOST", "0.0.0.0")
+HOST = os.environ.get("CHAT_PROXY_HOST", "127.0.0.1")
 
 class ChatProxyRequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self, status: int = 200) -> None:

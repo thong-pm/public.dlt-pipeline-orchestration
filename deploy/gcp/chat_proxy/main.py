@@ -14,8 +14,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from semantic_catalog import SYSTEM_INSTRUCTION
 from rate_limiter import RateLimiter
 try:
-    from duckdb_executor import run_analytical_query
+    from duckdb_executor import download_gcs_copilot_artifact, run_analytical_query
 except Exception:
+    download_gcs_copilot_artifact = None
     from bq_executor import run_analytical_query
 
 # Load .env file if running locally
@@ -45,9 +46,9 @@ rate_limiter = RateLimiter(
 # Tool function exposed to Gemini
 def execute_analytical_query(query: str) -> str:
     """
-    Executes a read-only SQL SELECT query against BigQuery dataset `gcp-etl-497002.dbt_prod`.
+    Executes a read-only SQL SELECT query against the configured BigQuery/DuckDB analytics dataset.
     Use this to retrieve factual metrics from fct_executive_cockpit, fct_pipeline, fct_revenue,
-    dim_projects, dim_products, or dim_customers.
+    dim_projects, dim_products, dim_customers, or stg_xero__invoices.
     """
     return run_analytical_query(query)
 
@@ -78,15 +79,26 @@ PRESET_CACHE_FILE = os.path.join(os.path.dirname(__file__), "copilot_preset_cach
 PRESET_CACHE_DATA: Dict[str, str] = {}
 
 def load_preset_cache_from_disk() -> None:
-    """Load latest pipeline-warmed cache from copilot_preset_cache.json."""
+    """Load latest pipeline-warmed cache from GCS or local copilot_preset_cache.json."""
     global PRESET_CACHE_DATA
-    if os.path.exists(PRESET_CACHE_FILE):
-        try:
-            with open(PRESET_CACHE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                PRESET_CACHE_DATA = data.get("presets", {})
-        except Exception:
-            pass
+    candidate_paths = []
+    if callable(download_gcs_copilot_artifact):
+        gcs_cache = download_gcs_copilot_artifact("copilot/copilot_preset_cache.json")
+        if gcs_cache:
+            candidate_paths.append(gcs_cache)
+    candidate_paths.append(PRESET_CACHE_FILE)
+
+    for cache_path in candidate_paths:
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    presets = data.get("presets", {})
+                    if presets:
+                        PRESET_CACHE_DATA = presets
+                        return
+            except Exception:
+                pass
 
 load_preset_cache_from_disk()
 
@@ -131,7 +143,7 @@ def get_preset_fast_path(prompt: str, has_history: bool = False) -> Optional[str
     # 2. Capabilities overview (only if no negation)
     if not has_negation and any(k in p for k in ["what can you do", "what do you do", "capabilities", "what are you capable"]):
         return (
-            "As the Executive Cockpit Analytical AI Assistant, I help executives query and analyze data from our data warehouse (`gcp-etl-497002.dbt_prod`).\n\n"
+            "As the Executive Cockpit Analytical AI Assistant, I help executives query and analyze data from our analytics data warehouse.\n\n"
             "Here are the main capabilities and data domains I can assist you with:\n\n"
             "1. **Executive Performance Cockpit** (`fct_executive_cockpit`):\n"
             "- Review billed revenue, job costs, and gross profit amounts.\n"
@@ -141,7 +153,7 @@ def get_preset_fast_path(prompt: str, has_history: bool = False) -> Optional[str
             "2. **Sales Pipeline & Deals** (`fct_pipeline`):\n"
             "- Inspect HubSpot CRM opportunities, deal stages, and total deal amounts.\n"
             "- Review win/loss reasons and active pipeline values.\n\n"
-            "3. **Revenue & Billing** (`fct_revenue` & `seed_xero_invoices`):\n"
+            "3. **Revenue & Billing** (`fct_revenue` & `stg_xero__invoices`):\n"
             "- Analyze granular billing transactions across source systems (HubSpot, Xero, Shopify, Procore).\n"
             "- Check accounts receivable invoice ledgers, outstanding amounts due, and payment status.\n\n"
             "4. **Operations & Catalogs** (`dim_projects`, `dim_customers`, `dim_products`):\n"

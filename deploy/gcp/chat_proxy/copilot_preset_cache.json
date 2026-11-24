@@ -1,6 +1,5 @@
 {
   "updated_at": "2026-11-13T07:49:03.960579+00:00",
-  "project_id": "gcp-etl-497002",
   "dataset_id": "dbt_prod",
   "presets": {
     "author": "You can contact the dashboard author, Thong Pham (TPM Data), via:\n- **Email**: thong@tpm-data.com\n- **Website**: https://www.tpm-data.com/\n\nFeel free to reach out for inquiries regarding automated ELT pipelines, dbt modeling, and modern data architecture.",

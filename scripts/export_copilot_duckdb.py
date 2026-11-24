@@ -19,7 +19,7 @@ TABLES = [
     "dim_projects",
     "dim_products",
     "dim_customers",
-    "seed_xero_invoices",
+    "stg_xero__invoices",
     "seed_dim_business_units",
     "seed_dim_regions"
 ]
@@ -30,7 +30,9 @@ OUTPUT_PATH = os.path.join(
 )
 
 def export_to_duckdb(output_file: str = OUTPUT_PATH) -> None:
-    print(f"Connecting to BigQuery dataset: {PROJECT_ID}.{DATASET_ID}...")
+    project_id = os.environ.get("GCP_PROJECT_ID") or PROJECT_ID
+    dataset_id = os.environ.get("BIGQUERY_DATASET") or DATASET_ID
+    print(f"Connecting to BigQuery dataset: {project_id}.{dataset_id}...")
     bq_client = get_bigquery_client()
 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -47,7 +49,7 @@ def export_to_duckdb(output_file: str = OUTPUT_PATH) -> None:
 
     for table in TABLES:
         try:
-            sql = f"SELECT * FROM `{PROJECT_ID}.{DATASET_ID}.{table}`"
+            sql = f"SELECT * FROM `{project_id}.{dataset_id}.{table}`"
             job = bq_client.query(sql)
             records = [dict(row) for row in job]
             df = pd.DataFrame(records)

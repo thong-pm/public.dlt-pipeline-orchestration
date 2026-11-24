@@ -11,10 +11,10 @@ if [ -f "${ROOT_DIR}/.env" ]; then
     set +a
 fi
 
-PROJECT_ID="${GCP_PROJECT_ID:-gcp-etl-497002}"
+PROJECT_ID="${GCP_PROJECT_ID:?GCP_PROJECT_ID environment variable is required}"
 REGION="${GCP_REGION:-us-central1}"
 FUNCTION_NAME="cockpit-ai-chat"
-SERVICE_ACCOUNT="dlt-pipeline-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+SERVICE_ACCOUNT="${GCP_SA_EMAIL:-dlt-pipeline-sa@${PROJECT_ID}.iam.gserviceaccount.com}"
 
 if [ -z "${GEMINI_API_KEY:-}" ]; then
     echo "ERROR: GEMINI_API_KEY environment variable is required."

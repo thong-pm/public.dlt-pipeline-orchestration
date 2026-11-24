@@ -3,13 +3,51 @@
 import json
 import os
 import re
+import tempfile
 import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
 import duckdb
 
 DUCKDB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "copilot_warehouse.duckdb")
+ALLOWED_GCS_ARTIFACTS = {
+    "copilot/copilot_warehouse.duckdb": "copilot_warehouse.duckdb",
+    "copilot/copilot_preset_cache.json": "copilot_preset_cache.json",
+}
 
 _duck_conn: Optional[duckdb.DuckDBPyConnection] = None
+
+
+def download_gcs_copilot_artifact(blob_name: str) -> Optional[str]:
+    if blob_name not in ALLOWED_GCS_ARTIFACTS:
+        return None
+    bucket = os.environ.get("GCS_TOKEN_BUCKET", "").strip()
+    if not bucket:
+        return None
+
+    temp_root = os.path.realpath(tempfile.gettempdir())
+    dest_path = os.path.realpath(os.path.join(temp_root, ALLOWED_GCS_ARTIFACTS[blob_name]))
+    if not dest_path.startswith(temp_root + os.sep):
+        return None
+
+    try:
+        import google.auth
+        from google.auth.transport.requests import AuthorizedSession
+
+        credentials, _ = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/devstorage.read_only"]
+        )
+        session = AuthorizedSession(credentials)
+        encoded_blob = urllib.parse.quote(blob_name, safe="")
+        url = f"https://storage.googleapis.com/storage/v1/b/{urllib.parse.quote(bucket, safe='')}/o/{encoded_blob}?alt=media"
+        response = session.get(url, timeout=10)
+        if response.status_code == 200 and response.content:
+            with open(dest_path, "wb") as f:
+                f.write(response.content)
+            return dest_path
+    except Exception as exc:
+        print(f"Notice: could not fetch {blob_name} from GCS ({exc}); using bundled artifact.")
+    return None
 
 try:
     import sqlglot
@@ -36,11 +74,16 @@ def get_duckdb_connection() -> Optional[duckdb.DuckDBPyConnection]:
     if _duck_conn is not None:
         return _duck_conn
 
-    possible_paths = [
+    possible_paths: List[str] = []
+    gcs_duckdb = download_gcs_copilot_artifact("copilot/copilot_warehouse.duckdb")
+    if gcs_duckdb:
+        possible_paths.append(gcs_duckdb)
+
+    possible_paths.extend([
         DUCKDB_PATH,
         os.path.join(os.getcwd(), "copilot_warehouse.duckdb"),
         os.path.join(os.getcwd(), "deploy", "gcp", "chat_proxy", "copilot_warehouse.duckdb")
-    ]
+    ])
     for path in possible_paths:
         if os.path.exists(path):
             try:
@@ -104,8 +147,8 @@ def normalize_sql_for_duckdb(sql: str) -> str:
     if not (clean.upper().startswith("SELECT") or clean.upper().startswith("WITH")):
         raise ValueError("Query must start with SELECT or WITH.")
 
-    clean = re.sub(r"`?gcp-etl-497002`?\.`?dbt_prod`?\.`?([a-zA-Z0-9_]+)`?", r"\1", clean, flags=re.IGNORECASE)
-    clean = re.sub(r"`?dbt_prod`?\.`?([a-zA-Z0-9_]+)`?", r"\1", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"`?[a-zA-Z0-9_-]+`?\.`?dbt_(?:prod|dev)`?\.`?([a-zA-Z0-9_]+)`?", r"\1", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"`?dbt_(?:prod|dev)`?\.`?([a-zA-Z0-9_]+)`?", r"\1", clean, flags=re.IGNORECASE)
     clean = re.sub(r"\bFLOAT64\b", "DOUBLE", clean, flags=re.IGNORECASE)
 
     if not re.search(r"\bLIMIT\b", clean, re.IGNORECASE):
@@ -155,7 +198,7 @@ def run_analytical_query(sql_query: str) -> str:
     return bq_run(sql_query)
 
 if __name__ == "__main__":
-    test_sql = "SELECT business_unit, sum(total_billed_revenue) as rev FROM `gcp-etl-497002.dbt_prod.fct_executive_cockpit` GROUP BY 1"
+    test_sql = "SELECT business_unit, sum(total_billed_revenue) as rev FROM fct_executive_cockpit GROUP BY 1"
     t0 = time.time()
     res = run_analytical_query(test_sql)
     dur = (time.time() - t0) * 1000

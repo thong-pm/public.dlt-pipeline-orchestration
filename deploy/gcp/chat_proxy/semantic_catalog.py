@@ -1,10 +1,10 @@
 """Semantic catalog and schema definitions for Executive Cockpit data marts."""
 
 SCHEMA_CATALOG = """
-You have access to a BigQuery data warehouse in dataset `gcp-etl-497002.dbt_prod`.
+You have access to a BigQuery data warehouse (configured via BIGQUERY_DATASET).
 Tables available for querying:
 
-1. `gcp-etl-497002.dbt_prod.fct_executive_cockpit`
+1. `fct_executive_cockpit`
    Description: Monthly executive performance cockpit aggregating revenue actuals, target margins, CRM pipeline, and cash collections.
    Columns:
      - month_date (DATE): First day of the month (e.g., '2026-01-01'). Reference dashboard date is '2026-06-15'.
@@ -30,7 +30,7 @@ Tables available for querying:
      - wip_value (FLOAT64): Unbilled work-in-progress delivery commitments in USD.
      - lead_to_cash_days (FLOAT64): Average cycle duration from lead creation to cash collection.
 
-2. `gcp-etl-497002.dbt_prod.fct_pipeline`
+2. `fct_pipeline`
    Description: Sales pipeline opportunities from HubSpot CRM.
    Columns:
      - deal_id (STRING): CRM deal identifier.
@@ -42,7 +42,7 @@ Tables available for querying:
      - notes_last_updated_at (TIMESTAMP): Last activity timestamp.
      - customer_email (STRING): Associated customer email.
 
-3. `gcp-etl-497002.dbt_prod.fct_revenue`
+3. `fct_revenue`
    Description: Granular billing and sales revenue transactions from billing systems and CRM.
    Columns:
      - revenue_key (STRING): Transaction surrogate key.
@@ -55,7 +55,7 @@ Tables available for querying:
      - transaction_month (INT64): Month (1-12).
      - customer_email (STRING): Customer email identifier.
 
-4. `gcp-etl-497002.dbt_prod.dim_projects`
+4. `dim_projects`
    Description: Operational and construction projects consolidated from Procore.
    Columns:
      - project_id (STRING): Operational project identifier.
@@ -66,7 +66,7 @@ Tables available for querying:
      - created_at (TIMESTAMP): Creation timestamp.
      - updated_at (TIMESTAMP): Last update timestamp.
 
-5. `gcp-etl-497002.dbt_prod.dim_products`
+5. `dim_products`
    Description: Shopify product master catalog and retail pricing. Contains ONLY product titles, vendors, types, variants, and retail prices. NOTE: Does NOT track product defect rates, bugs, quality issues, customer tickets, or inventory stockouts.
    Columns:
      - product_id (STRING): Product identifier.
@@ -78,7 +78,7 @@ Tables available for querying:
      - price (FLOAT64): Unit retail price.
      - is_taxable (BOOLEAN): Taxable status.
 
-6. `gcp-etl-497002.dbt_prod.dim_customers`
+6. `dim_customers`
    Description: Golden customer master records consolidated across HubSpot and Xero.
    Columns:
      - customer_key (STRING): Customer surrogate identifier.
@@ -88,17 +88,17 @@ Tables available for querying:
      - contact_status (STRING): CRM contact status.
      - golden_source (STRING): Source system ('HubSpot', 'Xero').
 
-7. `gcp-etl-497002.dbt_prod.seed_xero_invoices`
+7. `stg_xero__invoices`
    Description: Granular accounts receivable invoice ledger from Xero.
    Columns:
      - invoice_id (STRING): Xero invoice UUID.
      - invoice_number (STRING): Human-readable invoice code (e.g., 'INV-0006').
-     - contact__name (STRING): Client or customer company name.
+     - contact_name (STRING): Client or customer company name.
      - amount_due (FLOAT64): Outstanding balance due in USD.
      - amount_paid (FLOAT64): Amount paid to date in USD.
-     - total (FLOAT64): Total invoice gross amount in USD.
-     - due_date_string (DATE): Payment due date. Reference date is 2026-06-15.
-     - status (STRING): Invoice status ('AUTHORISED', 'PAID', 'DRAFT').
+     - total_amount (FLOAT64): Total invoice gross amount in USD.
+     - due_date (DATE): Payment due date. Reference date is 2026-06-15.
+     - invoice_status (STRING): Invoice status ('AUTHORISED', 'PAID', 'DRAFT').
 """
 
 SYSTEM_INSTRUCTION = f"""

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "gcp-etl-497002")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "")
 DATASET_ID = os.environ.get("BIGQUERY_DATASET", "dbt_prod")
 
 try:
@@ -52,7 +52,7 @@ def sanitize_and_qualify_query(sql: str) -> str:
     known_tables = {
         "fct_executive_cockpit", "fct_pipeline", "fct_revenue",
         "dim_projects", "dim_customers", "dim_products",
-        "seed_dim_business_units", "seed_dim_regions", "seed_xero_invoices"
+        "seed_dim_business_units", "seed_dim_regions", "stg_xero__invoices"
     }
 
     if HAS_SQLGLOT:

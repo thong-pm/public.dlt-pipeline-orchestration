@@ -20,10 +20,12 @@ from bq_executor import get_bigquery_client, PROJECT_ID, DATASET_ID
 from google.cloud import bigquery
 
 def warm_cache() -> None:
-    print(f"=== [Pre-warming Copilot Cache] Connecting to BigQuery ({PROJECT_ID}.{DATASET_ID}) ===")
+    project_id = os.environ.get("GCP_PROJECT_ID") or PROJECT_ID
+    dataset_id = os.environ.get("BIGQUERY_DATASET") or DATASET_ID
+    print(f"=== [Pre-warming Copilot Cache] Connecting to BigQuery ({project_id}.{dataset_id}) ===")
     t0 = time.time()
     client = get_bigquery_client()
-    job_cfg = bigquery.QueryJobConfig(default_dataset=f"{PROJECT_ID}.{DATASET_ID}", use_query_cache=True)
+    job_cfg = bigquery.QueryJobConfig(default_dataset=f"{project_id}.{dataset_id}", use_query_cache=True)
 
     presets = {}
 
@@ -38,8 +40,8 @@ def warm_cache() -> None:
     # 2. Signal 1: Xero Overdue Invoice
     try:
         q_xero = """
-        SELECT invoice_number, contact__name, amount_due, due_date_string, status
-        FROM `seed_xero_invoices`
+        SELECT invoice_number, contact_name, amount_due, due_date, invoice_status
+        FROM `stg_xero__invoices`
         WHERE amount_due > 0
         ORDER BY amount_due DESC
         LIMIT 1
@@ -47,14 +49,14 @@ def warm_cache() -> None:
         rows = list(client.query(q_xero, job_config=job_cfg).result())
         if rows:
             r = rows[0]
-            due_str = str(r.due_date_string) if r.due_date_string else "2026-05-15"
+            due_str = str(r.due_date) if r.due_date else "2026-05-15"
             presets["xero_overdue"] = (
                 f"Based on Xero billing records in the data warehouse:\n"
-                f"- **Customer**: {r.contact__name}\n"
+                f"- **Customer**: {r.contact_name}\n"
                 f"- **Invoice ID**: {r.invoice_number}\n"
                 f"- **Overdue Amount**: ${r.amount_due:,.2f}\n"
                 f"- **Due Date**: {due_str} (Overdue relative to reference snapshot 2026-06-15)\n"
-                f"- **Status**: {r.status}\n\n"
+                f"- **Status**: {r.invoice_status}\n\n"
                 f"Recommendation: Prompt the account receivable team to follow up on the outstanding balance."
             )
         else:
@@ -177,8 +179,7 @@ def warm_cache() -> None:
     # Save to local artifact
     cache_payload = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
-        "project_id": PROJECT_ID,
-        "dataset_id": DATASET_ID,
+        "dataset_id": dataset_id,
         "presets": presets
     }
 
